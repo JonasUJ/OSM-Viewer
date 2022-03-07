@@ -71,19 +71,19 @@ public class MapCanvas extends Region {
         transformBuffer = FloatBuffer.allocate(16);
         transformBuffer.put((float) transform.getMxx());
         transformBuffer.put((float) transform.getMxy());
-        transformBuffer.put((float) transform.getMxz());
+        transformBuffer.put(0);
         transformBuffer.put(0);
         transformBuffer.put((float) transform.getMyx());
         transformBuffer.put((float) transform.getMyy());
-        transformBuffer.put((float) transform.getMyz());
         transformBuffer.put(0);
-        transformBuffer.put((float) transform.getMzx());
-        transformBuffer.put((float) transform.getMzy());
-        transformBuffer.put((float) transform.getMzz());
+        transformBuffer.put(0);
+        transformBuffer.put(0);
+        transformBuffer.put(0);
+        transformBuffer.put(1);
         transformBuffer.put(0);
         transformBuffer.put((float) transform.getTx());
         transformBuffer.put((float) transform.getTy());
-        transformBuffer.put((float) transform.getTz());
+        transformBuffer.put(0);
         transformBuffer.put(1);
     }
 }

@@ -1,9 +1,8 @@
-package bfst22.vector;
-
-import java.io.IOException;
+package application;
 
 import canvas.Controller;
 import canvas.Model;
+import java.io.IOException;
 import javafx.fxml.FXMLLoader;
 import javafx.stage.Stage;
 

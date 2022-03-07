@@ -18,11 +18,7 @@ public class RefTable {
     }
 
     public int get(long key) {
-        if (!isSorted) {
-            System.out.println("Sorting in get");
-            sortByKeys(Long::compare);
-            System.out.println("Done sorting in get");
-        }
+        if (!isSorted) sortByKeys(Long::compare);
 
         var search = keys.search(key);
 

@@ -35,14 +35,16 @@ public enum Drawable {
     Path(Shape.Polyline, Color.web("#edb39f"), 0.1),
     Track(Shape.Polyline, Color.web("#95dcc0"), 0.2),
     ServiceRoad(Shape.Polyline, Color.web("#ffffff"), 0.2),
-    Road(Shape.Polyline, Color.web("#ffffff"), 0.5),
+    Road(Shape.Polyline, Color.web("#ffffff"), 0.4),
     TreeRow(Shape.Polyline, Color.web("#aacea3"), 0.2),
-    Tertiary(Shape.Polyline, Color.web("#ffffff"), 1.4),
-    Secondary(Shape.Polyline, Color.web("#f7fabf"), 1.6),
-    Primary(Shape.Polyline, Color.web("#fcd6a4"), 1.8),
-    Motorway(Shape.Polyline, Color.web("#e892a2"), 2.0),
+    Tertiary(Shape.Polyline, Color.web("#ffffff"), 0.7),
+    Secondary(Shape.Polyline, Color.web("#f7fabf"), 0.8),
+    Primary(Shape.Polyline, Color.web("#fcd6a4"), 0.9),
+    Motorway(Shape.Polyline, Color.web("#e892a2"), 1.0),
     Unknown(Shape.Fill, Color.BLACK, 0),
     Ignored(Shape.Fill, Color.BLACK, 0);
+
+    public static final float length = values().length;
 
     public final Shape shape;
     public final Color color;
@@ -52,6 +54,10 @@ public enum Drawable {
         this.shape = shape;
         this.color = color;
         this.size = size;
+    }
+
+    public float layer() {
+        return ordinal() / length;
     }
 
     static Drawable _default(String key, String value) {
@@ -124,7 +130,16 @@ public enum Drawable {
                 case "rest_area" -> RestArea;
                 case "track" -> Track;
                 case "road", "residential", "unclassified", "raceway", "taxiway" -> Road;
-                case "bridleway", "construction", "crossing", "cycleway", "footway", "give_way", "living_street", "path", "pedestrian", "steps" -> Path;
+                case "bridleway",
+                        "construction",
+                        "crossing",
+                        "cycleway",
+                        "footway",
+                        "give_way",
+                        "living_street",
+                        "path",
+                        "pedestrian",
+                        "steps" -> Path;
                 default -> _default(key, value);
             };
         };

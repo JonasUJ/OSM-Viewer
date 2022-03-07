@@ -1,4 +1,4 @@
-package bfst22.vector;
+package application;
 
 import java.io.IOException;
 import javafx.application.Application;

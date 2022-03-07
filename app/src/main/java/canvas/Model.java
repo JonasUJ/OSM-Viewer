@@ -3,8 +3,6 @@ package canvas;
 import collections.Polygons;
 import com.jogamp.opengl.*;
 import java.io.*;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
@@ -108,8 +106,6 @@ public class Model {
                             (long) colorBuffer.capacity() * Float.BYTES,
                             colorBuffer.rewind(),
                             GL.GL_STATIC_DRAW);
-
-                    gl.glEnable(GL3.GL_MULTISAMPLE);
 
                     return true;
                 });

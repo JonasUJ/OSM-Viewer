@@ -1,7 +1,6 @@
 package osm;
 
 import collections.*;
-
 import java.io.InputStream;
 import java.util.ArrayList;
 import javax.xml.stream.XMLInputFactory;
@@ -10,7 +9,14 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
 public class OSMReader {
-    enum Parseable { node, way, relation, tag, nd, member }
+    enum Parseable {
+        node,
+        way,
+        relation,
+        tag,
+        nd,
+        member
+    }
 
     final XMLStreamReader reader;
 
@@ -60,24 +66,6 @@ public class OSMReader {
         parsing = Parseable.relation;
         parseAll(Parseable.relation, this::parseRelation);
         System.out.println("Parsed: " + relationWays.size() + " relations");
-
-        // Sort in draw order, with undrawable ways last
-        System.out.println("Sorting ways");
-        wayRefs.sortByValues(
-                (i, j) -> {
-                    var wi = wayDrawables.get(i);
-                    var wj = wayDrawables.get(j);
-
-                    if (wi == -1 && wj == -1) return 0;
-                    else if (wi == -1) return 1;
-                    else if (wj == -1) return -1;
-                    else {
-                        var di = Drawable.fromTag(tags.get(wi), tags.get(wi + 1));
-                        var dj = Drawable.fromTag(tags.get(wj), tags.get(wj + 1));
-                        return di.compareTo(dj);
-                    }
-                });
-        System.out.println("Done sorting ways");
     }
 
     void advance() {
@@ -95,7 +83,9 @@ public class OSMReader {
             advance();
         }
 
-        bounds = new OSMBounds(getDouble("minlat"), getDouble("minlon"), getDouble("maxlat"), getDouble("maxlon"));
+        bounds =
+                new OSMBounds(
+                        getDouble("minlat"), getDouble("minlon"), getDouble("maxlat"), getDouble("maxlon"));
         advance();
     }
 
@@ -232,8 +222,8 @@ public class OSMReader {
             var way = values.get(i);
             var wd = wayDrawables.get(way);
 
-            // All undrawable ways appear last, meaning we're done when we see the first one
-            if (wd == -1) break;
+            // Undrawable
+            if (wd == -1) continue;
 
             var drawable = Drawable.fromTag(tags.get(wd), tags.get(wd + 1));
             if (drawable == Drawable.Ignored) continue;
@@ -246,8 +236,8 @@ public class OSMReader {
             }
 
             switch (drawable.shape) {
-                case Polyline -> polygons.addLines(points, drawable.size, drawable.color);
-                case Fill -> polygons.addPolygon(points, drawable.color);
+                case Polyline -> polygons.addLines(points, drawable.size, drawable.color, drawable.layer());
+                case Fill -> polygons.addPolygon(points, drawable.color, drawable.layer());
             }
 
             points.clear();
