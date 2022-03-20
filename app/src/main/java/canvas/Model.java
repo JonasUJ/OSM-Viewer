@@ -1,116 +1,103 @@
 package canvas;
 
-import collections.Polygons;
 import com.jogamp.opengl.*;
-import java.io.*;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
-import java.util.zip.ZipOutputStream;
-import javax.xml.stream.XMLStreamException;
-import osm.OSMReader;
+import io.FileParser;
+import io.PolygonsReader;
+import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
 public class Model {
-    final GLCapabilities caps;
-    final GLAutoDrawable sharedDrawable;
-    final int[] vbo = new int[Model.VBOType.values().length];
-    int count;
+    private final GLCapabilities caps;
+    private final GLAutoDrawable sharedDrawable;
+    private final int[] vbo = new int[Model.VBOType.values().length];
+    private int indexCount;
 
-    public Model(String filename) throws IOException, XMLStreamException {
-        Polygons polygons;
-
-        // TODO: Clean up file reading/writing. Also, I was using Serializable before it
-        // was cool...
-        if (filename.endsWith(".osm")
-                || filename.endsWith(".xml")
-                || filename.endsWith(".osm.zip")
-                || filename.endsWith(".xml.zip")) {
-
-            InputStream stream = new BufferedInputStream(new FileInputStream(filename));
-            if (filename.endsWith(".zip")) {
-                var zipFile = new ZipFile(filename);
-                var entry = zipFile.entries().nextElement();
-                stream = zipFile.getInputStream(entry);
-            }
-
-            var reader = new OSMReader(stream);
-            polygons = reader.createPolygons();
-
-            filename = filename.split("\\.")[0] + ".ser.zip";
-            var zipStream = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(filename)));
-            zipStream.putNextEntry(new ZipEntry(filename));
-            var outputStream = new ObjectOutputStream(zipStream);
-            outputStream.writeObject(polygons);
-            outputStream.flush();
-            outputStream.close();
-        } else if (filename.endsWith(".ser") || filename.endsWith(".ser.zip")) {
-            try {
-                InputStream stream;
-                if (filename.endsWith(".zip")) {
-                    var zipFile = new ZipFile(filename);
-                    var entry = zipFile.entries().nextElement();
-                    stream = zipFile.getInputStream(entry);
-                } else {
-                    stream = new BufferedInputStream(new FileInputStream(filename));
-                }
-
-                stream = new ObjectInputStream(stream);
-                polygons = (Polygons) ((ObjectInputStream) stream).readObject();
-                stream.close();
-            } catch (IOException | ClassNotFoundException e) {
-                throw new RuntimeException("Could not read serialized file: " + e.getMessage());
-            }
-        } else {
-            throw new IllegalArgumentException(
-                    "Only .osm, .xml, .ser or any of those zipped are allowed");
-        }
-
+    public Model(String filename) throws Exception {
         caps = new GLCapabilities(GLProfile.getMaxFixedFunc(true));
         // 8x anti-aliasing
         caps.setSampleBuffers(true);
         caps.setNumSamples(8);
 
+        // sharedDrawable is the object we communicate with OpenGL through
         sharedDrawable =
                 GLDrawableFactory.getFactory(caps.getGLProfile())
                         .createDummyAutoDrawable(null, true, caps, null);
         sharedDrawable.display();
 
+        try (var result = FileParser.readFile(filename)) {
+            loadPolygons(result.polygons());
+        }
+    }
+
+    private void loadPolygons(PolygonsReader reader) {
+        // Run once. We upload our various buffers to the GPU, registering them with OpenGL
         sharedDrawable.invoke(
                 true,
                 glAutoDrawable -> {
                     var gl = glAutoDrawable.getGL().getGL3();
 
-                    var vertexBuffer = polygons.getVertexBuffer();
-                    var indexBuffer = polygons.getIndexBuffer();
-                    var colorBuffer = polygons.getColorBuffer();
-                    count = indexBuffer.capacity();
+                    indexCount = reader.getIndexCount();
+                    var vertexCount = reader.getVertexCount();
+                    var colorCount = reader.getColorCount();
 
+                    // Get new id's for the buffers
                     gl.glGenBuffers(vbo.length, vbo, 0);
 
-                    gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, getVBO(Model.VBOType.Vertex));
-                    gl.glBufferData(
-                            GL3.GL_ARRAY_BUFFER,
-                            (long) vertexBuffer.capacity() * Float.BYTES,
-                            vertexBuffer.rewind(),
-                            GL.GL_STATIC_DRAW);
-
-                    gl.glBindBuffer(GL3.GL_ELEMENT_ARRAY_BUFFER, getVBO(Model.VBOType.Index));
+                    // Pre-allocate buffers with correct size
+                    gl.glBindBuffer(GL3.GL_ELEMENT_ARRAY_BUFFER, getVBO(VBOType.INDEX));
                     gl.glBufferData(
                             GL3.GL_ELEMENT_ARRAY_BUFFER,
-                            (long) indexBuffer.capacity() * Float.BYTES,
-                            indexBuffer.rewind(),
-                            GL.GL_STATIC_DRAW);
+                            (long) indexCount * Integer.BYTES,
+                            null,
+                            GL.GL_DYNAMIC_DRAW);
 
-                    gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, getVBO(Model.VBOType.Color));
+                    gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, getVBO(VBOType.VERTEX));
                     gl.glBufferData(
-                            GL3.GL_ARRAY_BUFFER,
-                            (long) colorBuffer.capacity() * Float.BYTES,
-                            colorBuffer.rewind(),
-                            GL.GL_STATIC_DRAW);
+                            GL3.GL_ARRAY_BUFFER, (long) vertexCount * Float.BYTES, null, GL.GL_DYNAMIC_DRAW);
+
+                    gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, getVBO(VBOType.COLOR));
+                    gl.glBufferData(
+                            GL3.GL_ARRAY_BUFFER, (long) colorCount * Byte.BYTES, null, GL.GL_DYNAMIC_DRAW);
+
+                    var curIndex = 0;
+                    var curVertex = 0;
+                    var curColor = 0;
+
+                    for (var drawing : reader.read()) {
+                        // Upload chunk to the index buffer
+                        gl.glBindBuffer(GL3.GL_ELEMENT_ARRAY_BUFFER, getVBO(VBOType.INDEX));
+                        gl.glBufferSubData(
+                                GL3.GL_ELEMENT_ARRAY_BUFFER,
+                                (long) curIndex * Integer.BYTES,
+                                (long) drawing.indices().size() * Integer.BYTES,
+                                IntBuffer.wrap(drawing.indices().getArray()));
+
+                        // Upload chunk to the vertex buffer
+                        gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, getVBO(VBOType.VERTEX));
+                        gl.glBufferSubData(
+                                GL3.GL_ARRAY_BUFFER,
+                                (long) curVertex * Float.BYTES,
+                                (long) drawing.vertices().size() * Float.BYTES,
+                                FloatBuffer.wrap(drawing.vertices().getArray()));
+
+                        // Upload chunk to the color buffer
+                        gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, getVBO(VBOType.COLOR));
+                        gl.glBufferSubData(
+                                GL3.GL_ARRAY_BUFFER,
+                                (long) curColor * Byte.BYTES,
+                                (long) drawing.colors().size() * Byte.BYTES,
+                                ByteBuffer.wrap(drawing.colors().getArray()));
+
+                        curIndex += drawing.indices().size();
+                        curVertex += drawing.vertices().size();
+                        curColor += drawing.colors().size();
+                    }
+
+                    System.gc();
 
                     return true;
                 });
-
-        sharedDrawable.display();
     }
 
     public GLCapabilities getCaps() {
@@ -121,17 +108,28 @@ public class Model {
         return sharedDrawable;
     }
 
+    /**
+     * Get the generated id of the buffer with the given type
+     *
+     * @param type
+     * @return Buffer id as seen from OpenGL
+     */
     public int getVBO(Model.VBOType type) {
         return vbo[type.ordinal()];
     }
 
+    /**
+     * Get the amount of vertices
+     *
+     * @return How many vertices are stored in the model
+     */
     public int getCount() {
-        return count;
+        return indexCount;
     }
 
     enum VBOType {
-        Vertex,
-        Index,
-        Color
+        VERTEX,
+        INDEX,
+        COLOR
     }
 }

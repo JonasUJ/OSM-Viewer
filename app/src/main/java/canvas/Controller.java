@@ -6,9 +6,9 @@ import javafx.fxml.FXML;
 import javafx.geometry.Point2D;
 
 public class Controller implements MouseListener {
-    Point2D lastMouse;
+    private Point2D lastMouse;
 
-    @FXML MapCanvas canvas;
+    @FXML private MapCanvas canvas;
 
     public void init(Model model) {
         canvas.init(model);

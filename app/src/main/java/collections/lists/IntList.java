@@ -1,13 +1,18 @@
-package collections;
+package collections.lists;
 
-import java.io.Serializable;
+import java.io.*;
 import java.util.Arrays;
 
 public class IntList implements Serializable {
-    int[] array = new int[1];
-    int n = 0;
+    private int[] array = new int[8];
+    private int n = 0;
 
     public IntList() {}
+
+    public IntList(int[] array) {
+        this.array = array;
+        n = array.length;
+    }
 
     public int add(int value) {
         if (n == array.length) {
@@ -56,13 +61,30 @@ public class IntList implements Serializable {
         return tmp;
     }
 
-    void swap(int i, int j) {
+    public void swap(int i, int j) {
         var tmp = array[i];
         array[i] = array[j];
         array[j] = tmp;
     }
 
-    int search(int value) {
-        return Arrays.binarySearch(array, value);
+    public int search(int value) {
+        return Arrays.binarySearch(array, 0, n, value);
+    }
+
+    public void extend(IntList other) {
+        var newSize = size() + other.size();
+        if (newSize > array.length) setSize(newSize);
+        System.arraycopy(other.getArray(), 0, array, n, other.size());
+    }
+
+    @Serial
+    private void readObject(ObjectInputStream in) throws ClassNotFoundException, IOException {
+        array = (int[]) in.readUnshared();
+        n = array.length;
+    }
+
+    @Serial
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        out.writeUnshared(toArray());
     }
 }

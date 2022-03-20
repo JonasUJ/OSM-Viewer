@@ -46,9 +46,9 @@ public class ShaderProgram {
 
             for (var loc : Location.values()) {
                 switch (loc.getType()) {
-                    case Attrib -> locations[loc.ordinal()] =
+                    case ATTRIB -> locations[loc.ordinal()] =
                             gl.glGetAttribLocation(programId, loc.getName());
-                    case Uniform -> locations[loc.ordinal()] =
+                    case UNIFORM -> locations[loc.ordinal()] =
                             gl.glGetUniformLocation(programId, loc.getName());
                 }
             }

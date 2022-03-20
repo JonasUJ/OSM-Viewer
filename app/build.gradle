@@ -5,7 +5,7 @@ plugins {
 }
 
 application {
-    applicationDefaultJvmArgs = ['-Xmx8000m', '--add-opens', 'javafx.graphics/com.sun.javafx.tk=ALL-UNNAMED', '--add-opens', 'javafx.graphics/javafx.stage=ALL-UNNAMED', '--add-opens', 'javafx.graphics/com.sun.javafx.tk.quantum=ALL-UNNAMED', '--add-opens', 'javafx.graphics/com.sun.glass.ui=ALL-UNNAMED']
+    applicationDefaultJvmArgs = ['-Xmx4000m', '--add-opens', 'javafx.graphics/com.sun.javafx.tk=ALL-UNNAMED', '--add-opens', 'javafx.graphics/javafx.stage=ALL-UNNAMED', '--add-opens', 'javafx.graphics/com.sun.javafx.tk.quantum=ALL-UNNAMED', '--add-opens', 'javafx.graphics/com.sun.glass.ui=ALL-UNNAMED']
 }
 
 repositories {
@@ -32,6 +32,9 @@ dependencies {
 
     // Polygon Triangulation
     implementation 'io.github.earcut4j:earcut4j:2.2.2'
+
+    // Very relevant general purpose things
+    implementation 'org.locationtech.jts:jts-core:1.18.2'
 
     // JavaFX
     implementation 'org.openjfx:javafx-base:0.0.11:win'
@@ -64,7 +67,7 @@ tasks.named('test') {
 
 spotless {
     java {
-        // use the default importorder configuration
+        // use the default importOrder configuration
         importOrder()
 
         removeUnusedImports()

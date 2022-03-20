@@ -1,13 +1,18 @@
-package collections;
+package collections.lists;
 
-import java.io.Serializable;
+import java.io.*;
 import java.util.Arrays;
 
 public class FloatList implements Serializable {
-    float[] array = new float[1];
-    int n = 0;
+    private float[] array = new float[8];
+    private int n = 0;
 
     public FloatList() {}
+
+    public FloatList(float[] array) {
+        this.array = array;
+        n = array.length;
+    }
 
     public int add(float value) {
         if (n == array.length) {
@@ -56,13 +61,30 @@ public class FloatList implements Serializable {
         return tmp;
     }
 
-    void swap(int i, int j) {
+    public void swap(int i, int j) {
         var tmp = array[i];
         array[i] = array[j];
         array[j] = tmp;
     }
 
-    int search(float value) {
-        return Arrays.binarySearch(array, value);
+    public int search(float value) {
+        return Arrays.binarySearch(array, 0, n, value);
+    }
+
+    public void extend(FloatList other) {
+        var newSize = size() + other.size();
+        if (newSize > array.length) setSize(newSize);
+        System.arraycopy(other.getArray(), 0, array, n, other.size());
+    }
+
+    @Serial
+    private void readObject(ObjectInputStream in) throws ClassNotFoundException, IOException {
+        array = (float[]) in.readUnshared();
+        n = array.length;
+    }
+
+    @Serial
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        out.writeUnshared(toArray());
     }
 }

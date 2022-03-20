@@ -8,10 +8,11 @@ package shaders;
  * @author serhiy
  */
 public enum Location {
-    POSITION("inPosition", LocationType.Attrib),
-    COLOR("inColor", LocationType.Attrib),
-    ORTHOGRAPHIC("inOrthographic", LocationType.Uniform),
-    TRANS("inTrans", LocationType.Uniform);
+    POSITION("inPosition", LocationType.ATTRIB),
+    COLOR("inColor", LocationType.ATTRIB),
+    ORTHOGRAPHIC("inOrthographic", LocationType.UNIFORM),
+    TRANS("inTrans", LocationType.UNIFORM),
+    COLORMAP("colorMap", LocationType.UNIFORM);
 
     private final String name;
     private final LocationType type;
@@ -31,7 +32,7 @@ public enum Location {
     }
 
     enum LocationType {
-        Attrib,
-        Uniform
+        ATTRIB,
+        UNIFORM
     }
 }
