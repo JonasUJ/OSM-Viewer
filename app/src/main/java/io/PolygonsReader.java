@@ -11,7 +11,7 @@ import java.io.ObjectInputStream;
 public class PolygonsReader extends StreamingReader<Drawing> {
     private int indexCount = -1;
     private int vertexCount = -1;
-    private int colorCount = -1;
+    private int drawableCount = -1;
 
     public PolygonsReader(ObjectInputStream in) {
         super(in);
@@ -24,7 +24,7 @@ public class PolygonsReader extends StreamingReader<Drawing> {
         try {
             indexCount = stream.readInt();
             vertexCount = stream.readInt();
-            colorCount = stream.readInt();
+            drawableCount = stream.readInt();
 
             // Wrap in another stream to read the 4-byte header
             setStream(new ObjectInputStream(stream));
@@ -50,8 +50,8 @@ public class PolygonsReader extends StreamingReader<Drawing> {
         return vertexCount;
     }
 
-    public int getColorCount() {
+    public int getDrawableCount() {
         readCounts();
-        return colorCount;
+        return drawableCount;
     }
 }

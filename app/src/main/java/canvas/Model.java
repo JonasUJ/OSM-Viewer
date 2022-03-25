@@ -1,6 +1,9 @@
 package canvas;
 
+import Search.Address;
+import Search.AddressDatabase;
 import com.jogamp.opengl.*;
+import drawing.Drawable;
 import io.FileParser;
 import io.PolygonsReader;
 import java.nio.ByteBuffer;
@@ -8,10 +11,14 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
 public class Model {
+
     private final GLCapabilities caps;
     private final GLAutoDrawable sharedDrawable;
-    private final int[] vbo = new int[Model.VBOType.values().length];
+    private final IntBuffer vbo = IntBuffer.allocate(VBOType.values().length);
+    private final IntBuffer tex = IntBuffer.allocate(TexType.values().length);
     private int indexCount;
+    AddressDatabase addresses;
+
 
     public Model(String filename) throws Exception {
         caps = new GLCapabilities(GLProfile.getMaxFixedFunc(true));
@@ -27,7 +34,10 @@ public class Model {
 
         try (var result = FileParser.readFile(filename)) {
             loadPolygons(result.polygons());
+            addresses=result.addresses().read();
+            addresses.buildTries();
         }
+
     }
 
     private void loadPolygons(PolygonsReader reader) {
@@ -39,10 +49,10 @@ public class Model {
 
                     indexCount = reader.getIndexCount();
                     var vertexCount = reader.getVertexCount();
-                    var colorCount = reader.getColorCount();
+                    var drawableCount = reader.getDrawableCount();
 
                     // Get new id's for the buffers
-                    gl.glGenBuffers(vbo.length, vbo, 0);
+                    gl.glGenBuffers(vbo.capacity(), vbo);
 
                     // Pre-allocate buffers with correct size
                     gl.glBindBuffer(GL3.GL_ELEMENT_ARRAY_BUFFER, getVBO(VBOType.INDEX));
@@ -56,13 +66,45 @@ public class Model {
                     gl.glBufferData(
                             GL3.GL_ARRAY_BUFFER, (long) vertexCount * Float.BYTES, null, GL.GL_DYNAMIC_DRAW);
 
-                    gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, getVBO(VBOType.COLOR));
+                    gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, getVBO(VBOType.DRAWABLE));
                     gl.glBufferData(
-                            GL3.GL_ARRAY_BUFFER, (long) colorCount * Byte.BYTES, null, GL.GL_DYNAMIC_DRAW);
+                            GL3.GL_ARRAY_BUFFER, (long) drawableCount * Byte.BYTES, null, GL.GL_DYNAMIC_DRAW);
+
+                    // Get new id's for textures
+                    gl.glGenTextures(tex.capacity(), tex);
+
+                    // Upload COLOR_MAP as 1D RGBA texture
+                    gl.glActiveTexture(GL3.GL_TEXTURE0);
+                    gl.glBindTexture(GL3.GL_TEXTURE_1D, getTex(TexType.COLOR_MAP));
+                    gl.glTexParameteri(GL3.GL_TEXTURE_1D, GL3.GL_TEXTURE_MAG_FILTER, GL3.GL_NEAREST);
+                    gl.glTexParameteri(GL3.GL_TEXTURE_1D, GL3.GL_TEXTURE_MIN_FILTER, GL3.GL_NEAREST);
+                    gl.glTexImage1D(
+                            GL3.GL_TEXTURE_1D,
+                            0,
+                            GL3.GL_RGBA,
+                            Drawable.values().length,
+                            0,
+                            GL3.GL_RGBA,
+                            GL3.GL_FLOAT,
+                            Drawable.COLOR_MAP.rewind());
+
+                    gl.glActiveTexture(GL3.GL_TEXTURE1);
+                    gl.glBindTexture(GL3.GL_TEXTURE_1D, getTex(TexType.MAP));
+                    gl.glTexParameteri(GL3.GL_TEXTURE_1D, GL3.GL_TEXTURE_MAG_FILTER, GL3.GL_NEAREST);
+                    gl.glTexParameteri(GL3.GL_TEXTURE_1D, GL3.GL_TEXTURE_MIN_FILTER, GL3.GL_NEAREST);
+                    gl.glTexImage1D(
+                            GL3.GL_TEXTURE_1D,
+                            0,
+                            GL3.GL_RG32UI,
+                            Drawable.values().length,
+                            0,
+                            GL3.GL_RG_INTEGER,
+                            GL3.GL_UNSIGNED_INT,
+                            Drawable.MAP.rewind());
 
                     var curIndex = 0;
                     var curVertex = 0;
-                    var curColor = 0;
+                    var curDrawable = 0;
 
                     for (var drawing : reader.read()) {
                         // Upload chunk to the index buffer
@@ -81,17 +123,17 @@ public class Model {
                                 (long) drawing.vertices().size() * Float.BYTES,
                                 FloatBuffer.wrap(drawing.vertices().getArray()));
 
-                        // Upload chunk to the color buffer
-                        gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, getVBO(VBOType.COLOR));
+                        // Upload chunk to the drawable buffer
+                        gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, getVBO(VBOType.DRAWABLE));
                         gl.glBufferSubData(
                                 GL3.GL_ARRAY_BUFFER,
-                                (long) curColor * Byte.BYTES,
-                                (long) drawing.colors().size() * Byte.BYTES,
-                                ByteBuffer.wrap(drawing.colors().getArray()));
+                                (long) curDrawable * Byte.BYTES,
+                                (long) drawing.drawables().size() * Byte.BYTES,
+                                ByteBuffer.wrap(drawing.drawables().getArray()));
 
                         curIndex += drawing.indices().size();
                         curVertex += drawing.vertices().size();
-                        curColor += drawing.colors().size();
+                        curDrawable += drawing.drawables().size();
                     }
 
                     System.gc();
@@ -115,7 +157,11 @@ public class Model {
      * @return Buffer id as seen from OpenGL
      */
     public int getVBO(Model.VBOType type) {
-        return vbo[type.ordinal()];
+        return vbo.get(type.ordinal());
+    }
+
+    public int getTex(Model.TexType type) {
+        return tex.get(type.ordinal());
     }
 
     /**
@@ -130,6 +176,15 @@ public class Model {
     enum VBOType {
         VERTEX,
         INDEX,
-        COLOR
+        DRAWABLE,
+    }
+
+    enum TexType {
+        COLOR_MAP,
+        MAP,
+    }
+
+    public AddressDatabase getAddresses() {
+        return addresses;
     }
 }

@@ -8,5 +8,6 @@ out vec4 color;
 
 void main()
 {
-    color = vert_color;
+    vec3 lum = vec3(0.299, 0.587, 0.114);
+    color = vec4(vec3(dot(vert_color.rgb, lum)), vert_color.a);
 }

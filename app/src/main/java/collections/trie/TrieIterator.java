@@ -1,12 +1,8 @@
 package collections.trie;
 
+import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map.Entry;
-import java.util.NoSuchElementException;
 
 /** PrefixIterator iterates over keys with a given prefix. */
 public class TrieIterator<Value> implements Iterator<Entry<String, Value>> {
@@ -16,7 +12,7 @@ public class TrieIterator<Value> implements Iterator<Entry<String, Value>> {
 
     TrieIterator(FinalTrie<Value> trie, String prefix) {
         this.prefix = prefix;
-        branch.add(Arrays.stream(trie.children).iterator());
+        branch.add(Collections.singleton(trie).iterator());
     }
 
     @Override
@@ -39,7 +35,7 @@ public class TrieIterator<Value> implements Iterator<Entry<String, Value>> {
             iter = branch.get(branch.size() - 1);
         }
 
-        return branch.size() > 0;
+        return true;
     }
 
     @Override
@@ -58,7 +54,7 @@ public class TrieIterator<Value> implements Iterator<Entry<String, Value>> {
             branch.add(iter);
 
             if (subtrie.value != null) {
-                return new SimpleEntry<String, Value>(prefix + rest, subtrie.value);
+                return new SimpleEntry<>(prefix + rest, subtrie.value);
             }
         }
 

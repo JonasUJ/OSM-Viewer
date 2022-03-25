@@ -1,11 +1,15 @@
-package collections;
+package geometry;
 
 public record Vector2D(double x, double y) {
-    public Vector2D normalize() {
-        return scale(1.0f / length());
+    public Vector2D(Point point) {
+        this(point.x(), point.y());
     }
 
-    public double length() {
+    public Vector2D normalize() {
+        return scale(1.0f / magnitude());
+    }
+
+    public double magnitude() {
         return Math.sqrt(x * x + y * y);
     }
 

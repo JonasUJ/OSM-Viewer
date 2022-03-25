@@ -1,5 +1,6 @@
 package canvas;
 
+import collections.enumflags.ObservableEnumFlags;
 import com.jogamp.nativewindow.javafx.JFXAccessor;
 import com.jogamp.newt.event.MouseListener;
 import com.jogamp.newt.event.WindowAdapter;
@@ -7,6 +8,7 @@ import com.jogamp.newt.event.WindowEvent;
 import com.jogamp.newt.javafx.NewtCanvasJFX;
 import com.jogamp.newt.opengl.GLWindow;
 import com.jogamp.opengl.util.Animator;
+import drawing.Category;
 import java.nio.FloatBuffer;
 import javafx.application.Platform;
 import javafx.scene.layout.Region;
@@ -17,6 +19,9 @@ public class MapCanvas extends Region {
     private Animator animator;
     private FloatBuffer transformBuffer;
     private GLWindow window;
+    private Renderer renderer;
+
+    public final ObservableEnumFlags<Category> categories = new ObservableEnumFlags<>();
 
     public void init(Model model) {
         recalculateTransform();
@@ -47,8 +52,10 @@ public class MapCanvas extends Region {
                                 JFXAccessor.runOnJFXThread(
                                         false,
                                         () -> {
-                                            window.setVisible(false);
-                                            window.setVisible(true);
+                                            if (window.isVisible()) {
+                                                window.setVisible(false);
+                                                window.setVisible(true);
+                                            }
                                         });
                             }
                         });
@@ -67,9 +74,14 @@ public class MapCanvas extends Region {
         canvas.setHeight(getPrefHeight());
 
         // Start rendering the model
-        window.addGLEventListener(new Renderer(model, this));
+        renderer = new Renderer(model, this);
+        window.addGLEventListener(renderer);
         animator = new Animator(window);
         animator.start();
+    }
+
+    public void setShader(Renderer.Shader shader) {
+        renderer.setShader(shader);
     }
 
     public void dispose() {

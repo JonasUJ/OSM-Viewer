@@ -5,26 +5,63 @@ import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
 import drawing.Drawable;
-import drawing.MapColor;
 import java.io.File;
 import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 import javafx.scene.paint.Color;
 import shaders.Location;
 import shaders.ShaderProgram;
 
 public class Renderer implements GLEventListener {
-    private final Color clear = Drawable.WATER.mapColor.color;
+    public enum Shader {
+        DEFAULT("shaders/default.frag"),
+        MONOTONE("shaders/monotone.frag"),
+        PARTY("shaders/party.frag");
+
+        public final String filename;
+
+        Shader(String filename) {
+            this.filename = filename;
+        }
+    }
+
+    private final Color clear = Drawable.WATER.color;
     private final Model model;
     private final MapCanvas canvas;
-    private ShaderProgram shaderProgram;
+    private final ShaderProgram[] shaderPrograms = new ShaderProgram[Shader.values().length];
+    private Shader shader;
+    private Shader nextShader;
     private FloatBuffer orthographic;
-
-    private final IntBuffer tex = IntBuffer.allocate(1);
 
     public Renderer(Model model, MapCanvas canvas) {
         this.model = model;
         this.canvas = canvas;
+    }
+
+    public void setShader(Shader newShader) {
+        nextShader = newShader;
+    }
+
+    private ShaderProgram setShader(GLAutoDrawable glAutoDrawable) {
+        GL3 gl = glAutoDrawable.getGL().getGL3();
+
+        shader = nextShader;
+        var shaderProgram = shaderPrograms[shader.ordinal()];
+
+        // Set the current buffer to the vertex vbo
+        gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, model.getVBO(Model.VBOType.VERTEX));
+        // Tell OpenGL that the current buffer holds position data. 2 floats per position.
+        gl.glVertexAttribPointer(
+                shaderProgram.getLocation(Location.POSITION), 2, GL3.GL_FLOAT, false, 0, 0);
+        gl.glEnableVertexAttribArray(shaderProgram.getLocation(Location.POSITION));
+
+        // Set the current buffer to the drawable vbo. We're done initialising the vertex vbo now.
+        gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, model.getVBO(Model.VBOType.DRAWABLE));
+        // Tell OpenGL that the current buffer holds drawable data. 1 byte per drawable.
+        gl.glVertexAttribIPointer(
+                shaderProgram.getLocation(Location.DRAWABLE_ID), 1, GL3.GL_BYTE, 0, 0);
+        gl.glEnableVertexAttribArray(shaderProgram.getLocation(Location.DRAWABLE_ID));
+
+        return shaderProgram;
     }
 
     @Override
@@ -43,57 +80,41 @@ public class Renderer implements GLEventListener {
         gl.glDepthFunc(GL3.GL_LEQUAL);
         gl.glEnable(GL3.GL_DEPTH_TEST);
 
-        // Enable textures. We need this for the color map.
+        // Enable textures. We need this for the mappings.
         gl.glEnable(GL3.GL_TEXTURE_1D);
 
+        // Load shaders
+        int i = 0;
         File vertexShader = new File("shaders/default.vert");
-        File fragmentShader = new File("shaders/default.frag");
+        for (var shader : Shader.values()) {
+            File fragmentShader = new File(shader.filename);
+            var shaderProgram = new ShaderProgram();
+            shaderProgram.init(gl, vertexShader, fragmentShader);
+            shaderPrograms[i++] = shaderProgram;
+        }
 
-        shaderProgram = new ShaderProgram();
-        shaderProgram.init(gl, vertexShader, fragmentShader);
+        setShader(Shader.DEFAULT);
 
         // Set the current index buffer to the index buffer from the model
         gl.glBindBuffer(GL3.GL_ELEMENT_ARRAY_BUFFER, model.getVBO(Model.VBOType.INDEX));
-
-        // Set the current buffer to the vertex vbo
-        gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, model.getVBO(Model.VBOType.VERTEX));
-        // Tell OpenGL that the current buffer holds position data. 3 floats per position.
-        gl.glVertexAttribPointer(
-                shaderProgram.getLocation(Location.POSITION), 3, GL3.GL_FLOAT, false, 0, 0);
-        gl.glEnableVertexAttribArray(shaderProgram.getLocation(Location.POSITION));
-
-        // Set the current buffer to the color vbo. We're done initialising the vertex vbo now.
-        gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, model.getVBO(Model.VBOType.COLOR));
-        // Tell OpenGL that the current buffer holds color data. 1 byte per color.
-        gl.glVertexAttribIPointer(
-                shaderProgram.getLocation(Location.COLOR), 1, GL3.GL_BYTE, 0, 0);
-        gl.glEnableVertexAttribArray(shaderProgram.getLocation(Location.COLOR));
-
-        gl.glGenTextures(1, tex);
-        gl.glBindTexture(GL3.GL_TEXTURE_1D, tex.get(0));
-
-        gl.glTexParameteri(GL3.GL_TEXTURE_1D, GL3.GL_TEXTURE_MAG_FILTER, GL3.GL_NEAREST);
-        gl.glTexParameteri(GL3.GL_TEXTURE_1D, GL3.GL_TEXTURE_MIN_FILTER, GL3.GL_NEAREST);
-        gl.glTexImage1D(
-                GL3.GL_TEXTURE_1D,
-                0,
-                GL3.GL_RGBA,
-                MapColor.values().length,
-                0,
-                GL3.GL_RGBA,
-                GL3.GL_FLOAT,
-                MapColor.COLOR_MAP.rewind());
     }
 
     @Override
     public void dispose(GLAutoDrawable glAutoDrawable) {
         GL3 gl = glAutoDrawable.getGL().getGL3();
-        shaderProgram.dispose(gl);
+        shaderPrograms[shader.ordinal()].dispose(gl);
     }
 
     @Override
     public void display(GLAutoDrawable glAutoDrawable) {
         GL3 gl = glAutoDrawable.getGL().getGL3();
+
+        ShaderProgram shaderProgram;
+        if (shader != nextShader) {
+            shaderProgram = setShader(glAutoDrawable);
+        } else {
+            shaderProgram = shaderPrograms[shader.ordinal()];
+        }
 
         // Set the color used when clearing the screen
         gl.glClearColor(
@@ -106,13 +127,26 @@ public class Renderer implements GLEventListener {
         // Tell OpenGL about our transformation and orthographic matrices.
         // We need these in the vertex shader to position our vertices correctly.
         gl.glUniformMatrix4fv(
-                shaderProgram.getLocation(Location.TRANS), 1, false, canvas.getTransformBuffer().rewind());
+                shaderProgram.getLocation(Location.TRANSFORM),
+                1,
+                false,
+                canvas.getTransformBuffer().rewind());
         gl.glUniformMatrix4fv(
                 shaderProgram.getLocation(Location.ORTHOGRAPHIC), 1, false, orthographic.rewind());
 
         gl.glActiveTexture(GL3.GL_TEXTURE0);
-        gl.glBindTexture(GL3.GL_TEXTURE_1D, tex.get(0));
-        gl.glUniform1i(shaderProgram.getLocation(Location.COLORMAP), 0);
+        gl.glBindTexture(GL3.GL_TEXTURE_1D, model.getTex(Model.TexType.COLOR_MAP));
+        gl.glUniform1i(shaderProgram.getLocation(Location.COLOR_MAP), 0);
+
+        gl.glActiveTexture(GL3.GL_TEXTURE1);
+        gl.glBindTexture(GL3.GL_TEXTURE_1D, model.getTex(Model.TexType.MAP));
+        gl.glUniform1i(shaderProgram.getLocation(Location.MAP), 1);
+
+        gl.glUniform1ui(
+                shaderProgram.getLocation(Location.CATEGORY_BITSET), canvas.categories.getFlags());
+        gl.glUniform1f(
+                shaderProgram.getLocation(Location.TIME),
+                (float) (System.currentTimeMillis() % (2000 * Math.PI) / 1000.0));
 
         // Draw `model.getCount()` many triangles
         // This will use the currently bound index buffer

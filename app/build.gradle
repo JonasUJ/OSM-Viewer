@@ -30,11 +30,14 @@ dependencies {
     // Java OpenGL
     implementation files('lib/jars/jogamp-fat.jar')
 
+    // Parallel file compression
+    implementation files('lib/jars/parallelgzip-1.0.6.jar')
+
+    // Common utilities
+    implementation 'org.apache.commons:commons-compress:1.21'
+
     // Polygon Triangulation
     implementation 'io.github.earcut4j:earcut4j:2.2.2'
-
-    // Very relevant general purpose things
-    implementation 'org.locationtech.jts:jts-core:1.18.2'
 
     // JavaFX
     implementation 'org.openjfx:javafx-base:0.0.11:win'

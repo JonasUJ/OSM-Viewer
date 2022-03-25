@@ -24,4 +24,9 @@ public abstract class Entity implements Comparable<Entity> {
     public int compareTo(Entity other) {
         return Long.compare(id(), other.id());
     }
+
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof Entity e && e.id() == id();
+    }
 }

@@ -1,17 +1,79 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import canvas.MapCanvas?>
-<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.*?>
 <?import javafx.scene.Scene?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.Menu?>
+<?import Search.AutofillTextField?>
+
+
 <Scene xmlns="http://javafx.com/javafx"
        xmlns:fx="http://javafx.com/fxml"
-       fx:controller="canvas.Controller">
-    <BorderPane prefWidth="1280.0" prefHeight="720.0">
-        <center>
+       fx:controller="canvas.Controller"
+       fx:id="scene">
+
+    <BorderPane >    
+        <left>
+            <VBox id="allVBox" fx:id="leftVBox">
+            <padding>
+                <Insets top="10" bottom="10" left="10" right="10" />
+            </padding>
+                <GridPane alignment="center" hgap="10" vgap="10">
+                    <AutofillTextField fx:id="searchTextField" promptText="Search an address" GridPane.columnIndex="0" GridPane.rowIndex="0" onKeyTyped="#handleKeyTyped"/>
+                     <HBox spacing="10" alignment="bottom_right" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                        <Button fx:id="searchButton" id="allButtons" text="Search" onAction="#handleSearchClick">
+                        </Button>
+                    </HBox>
+                    <TextField fx:id="fromRouteTextField" promptText="From" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                    <TextField fx:id="toRouteTextField" promptText="To" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                    <HBox spacing="10" alignment="bottom_right" GridPane.columnIndex="0" GridPane.rowIndex="4">
+                        <Button fx:id="routeButton" id="allButtons" text="Find route" onAction="#handleRouteClick"/>
+                    </HBox>
+                    <HBox spacing="10" GridPane.columnIndex="0" GridPane.rowIndex="5">
+                        <fx:define>
+                            <ToggleGroup fx:id="groupRoute" />
+                        </fx:define>
+                        <RadioButton fx:id="radioButtonCar" text="Car" toggleGroup="$groupRoute"/>
+                        <RadioButton fx:id="radioButtonBikeOrWalk" text="Bike or walk" toggleGroup="$groupRoute"/>
+                    </HBox>
+                </GridPane>
+            </VBox>
+        </left>
+        <right>
+            <VBox id="allVBox" fx:id="rightVBox">
+                <padding>
+                    <Insets top="10" bottom="10" left="10" right="10" />
+                </padding>
+                <GridPane alignment="center" hgap="10" vgap="10">
+                    <Label text="Select what to show" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                    <CheckBox fx:id="checkBoxBuildings" text="Buildings" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                    <CheckBox fx:id="checkBoxHighways" text="Highways" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                    <CheckBox fx:id="checkBoxWater" text="Water" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                    <Label text="Select mode" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+                    <fx:define>
+                        <ToggleGroup fx:id="groupMode" />
+                    </fx:define>
+                    <RadioButton fx:id="radioButtonColorBlind" text="Colorblind mode" GridPane.columnIndex="0" GridPane.rowIndex="6" toggleGroup="$groupMode" onAction="#handleColorblind"/>
+                    <RadioButton fx:id="radioButtonDefaultMode" text="Default mode" GridPane.columnIndex="0" GridPane.rowIndex="7" toggleGroup="$groupMode" onAction="#handleDefaultMode"/>
+                    <RadioButton fx:id="radioButtonPartyMode" text="Party mode" GridPane.columnIndex="0" GridPane.rowIndex="8" toggleGroup="$groupMode" onAction="#handlePartyMode"/>
+                </GridPane>
+            </VBox>
+        </right>
+         <center>
             <MapCanvas fx:id="canvas"
                        prefWidth="1280"
                        prefHeight="720"
             />
         </center>
+        <top>
+            <MenuBar>
+                <Menu text="Appearance">
+                    <Menu fx:id="categories" text="Toggle categories"/>
+                </Menu>
+            </MenuBar>
+        </top>
     </BorderPane>
 </Scene>

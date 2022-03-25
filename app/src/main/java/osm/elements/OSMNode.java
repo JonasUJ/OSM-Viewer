@@ -1,9 +1,10 @@
 package osm.elements;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class OSMNode extends OSMElement {
+public final class OSMNode extends OSMElement implements Serializable {
     private final SlimOSMNode slim;
     private final List<OSMTag> tags;
 
