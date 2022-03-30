@@ -12,6 +12,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.archivers.tar.TarFile;
 import org.apache.commons.compress.utils.IOUtils;
 import osm.OSMReader;
+import osm.elements.OSMBounds;
 
 // TODO: Use a custom exception type instead of RuntimeException for when parsing fails.
 public class FileParser implements IOConstants {
@@ -19,6 +20,7 @@ public class FileParser implements IOConstants {
     private static final String POLYGONS = "polygons";
     private static final String DIJKSTRA = "dijkstra";
     private static final String ADDRESSES = "addresses";
+    private static final String BOUNDS = "bounds";
 
     public static ReadResult readFile(String filename) throws IOException, XMLStreamException {
         if (filename.matches(".*(\\.osm|\\.xml)(\\.zip)?$")) {
@@ -39,7 +41,8 @@ public class FileParser implements IOConstants {
         var polygonsWriter = new PolygonsWriter();
         var dijkstraWriter = new ObjectWriter<>(new Dijkstra());
         var addressWriter = new ObjectWriter<>(new AddressDatabase());
-        reader.addObservers(polygonsWriter, dijkstraWriter, addressWriter);
+        var boundsWriter = new ObjectWriter<>(new OSMBounds());
+        reader.addObservers(polygonsWriter, dijkstraWriter, addressWriter, boundsWriter);
 
         reader.parse(getInputStream(infile));
 
@@ -48,7 +51,8 @@ public class FileParser implements IOConstants {
                 outfile,
                 new Pair<>(POLYGONS, polygonsWriter),
                 new Pair<>(DIJKSTRA, dijkstraWriter),
-                new Pair<>(ADDRESSES, addressWriter));
+                new Pair<>(ADDRESSES, addressWriter),
+                new Pair<>(BOUNDS, boundsWriter));
 
         return outfile;
     }
@@ -84,7 +88,8 @@ public class FileParser implements IOConstants {
         return new ReadResult(
                 new PolygonsReader(getEntryStream(POLYGONS, tarFile)),
                 new ObjectReader<>(getEntryStream(DIJKSTRA, tarFile)),
-                new ObjectReader<>(getEntryStream(ADDRESSES, tarFile)));
+                new ObjectReader<>(getEntryStream(ADDRESSES, tarFile)),
+                new ObjectReader<>(getEntryStream(BOUNDS, tarFile)));
     }
 
     private static ObjectInputStream getEntryStream(String name, TarFile tarFile) throws IOException {

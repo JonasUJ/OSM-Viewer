@@ -20,6 +20,12 @@ public class AddressBuilder implements Serializable{
     public String getHouse(){
         return house;
     }
+    public String getSide(){
+        return side;
+    }
+    public String getFloor(){
+        return floor;
+    }
 
     public void street(String street){
         this.street = street;
@@ -47,22 +53,4 @@ public class AddressBuilder implements Serializable{
         return new Address(street, house, floor, side, postcode, city, node);
     }
 
-    public String getStringToReplace(Address address){
-        StringBuilder stringBuilder = new StringBuilder();
-
-        if(street != null)
-            stringBuilder.append(address.street()).append(" ");
-        if(house != null)
-            stringBuilder.append(address.houseNumber()).append(" ");
-        if(floor != null) //TODO: hmmm???
-            stringBuilder.append(address.floor()).append(" ");
-        if(side != null) //TODO: hmm?
-            stringBuilder.append(address.side()).append(" ");
-        if(city != null)
-            stringBuilder.append(address.city()).append(" ");
-        if(postcode != null)
-            stringBuilder.append(address.postcode()).append(" ");
-
-        return stringBuilder.toString();
-    }
 }

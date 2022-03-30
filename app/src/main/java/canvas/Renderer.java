@@ -1,6 +1,5 @@
 package canvas;
 
-import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
@@ -8,13 +7,15 @@ import drawing.Drawable;
 import java.io.File;
 import java.nio.FloatBuffer;
 import javafx.scene.paint.Color;
+import javafx.scene.transform.Affine;
+import javafx.scene.transform.MatrixType;
 import shaders.Location;
 import shaders.ShaderProgram;
 
 public class Renderer implements GLEventListener {
     public enum Shader {
         DEFAULT("shaders/default.frag"),
-        MONOTONE("shaders/monotone.frag"),
+        MONOCHROME("shaders/monochrome.frag"),
         PARTY("shaders/party.frag");
 
         public final String filename;
@@ -30,7 +31,7 @@ public class Renderer implements GLEventListener {
     private final ShaderProgram[] shaderPrograms = new ShaderProgram[Shader.values().length];
     private Shader shader;
     private Shader nextShader;
-    private FloatBuffer orthographic;
+    private Affine projection;
 
     public Renderer(Model model, MapCanvas canvas) {
         this.model = model;
@@ -62,6 +63,28 @@ public class Renderer implements GLEventListener {
         gl.glEnableVertexAttribArray(shaderProgram.getLocation(Location.DRAWABLE_ID));
 
         return shaderProgram;
+    }
+
+    private FloatBuffer affineToBuffer(Affine affine) {
+        return FloatBuffer.wrap(
+                new float[] {
+                    (float) affine.getMxx(),
+                    (float) affine.getMyx(),
+                    (float) affine.getMzx(),
+                    0,
+                    (float) affine.getMxy(),
+                    (float) affine.getMyy(),
+                    (float) affine.getMzy(),
+                    0,
+                    (float) affine.getMzx(),
+                    (float) affine.getMzy(),
+                    (float) affine.getMzz(),
+                    0,
+                    (float) affine.getTx(),
+                    (float) affine.getTy(),
+                    (float) affine.getTz(),
+                    1
+                });
     }
 
     @Override
@@ -124,15 +147,12 @@ public class Renderer implements GLEventListener {
 
         gl.glUseProgram(shaderProgram.getProgramId());
 
-        // Tell OpenGL about our transformation and orthographic matrices.
-        // We need these in the vertex shader to position our vertices correctly.
+        // Tell OpenGL about our projection matrix.
+        // We need this in the vertex shader to position our vertices correctly.
+        var transform = canvas.transform.clone();
+        transform.prepend(projection);
         gl.glUniformMatrix4fv(
-                shaderProgram.getLocation(Location.TRANSFORM),
-                1,
-                false,
-                canvas.getTransformBuffer().rewind());
-        gl.glUniformMatrix4fv(
-                shaderProgram.getLocation(Location.ORTHOGRAPHIC), 1, false, orthographic.rewind());
+                shaderProgram.getLocation(Location.PROJECTION), 1, false, affineToBuffer(transform));
 
         gl.glActiveTexture(GL3.GL_TEXTURE0);
         gl.glBindTexture(GL3.GL_TEXTURE_1D, model.getTex(Model.TexType.COLOR_MAP));
@@ -169,25 +189,23 @@ public class Renderer implements GLEventListener {
         final float far = 1.0f;
 
         // Recalculate orthographic projection matrix
-        this.orthographic =
-                Buffers.newDirectFloatBuffer(
-                        new float[] {
+        projection =
+                new Affine(
+                        new double[] {
                             2 / (right - left),
                             0,
                             0,
+                            -(right + left) / (right - left),
                             0,
+                            2 / (top - bottom),
                             0,
-                            -2 / (top - bottom),
-                            0,
-                            0,
+                            -(top + bottom) / (top - bottom),
                             0,
                             0,
                             -2 / (far - near),
-                            0,
-                            -(right + left) / (right - left),
-                            -(top + bottom) / (top - bottom),
                             (far + near) / (far - near),
-                            1
-                        });
+                        },
+                        MatrixType.MT_3D_3x4,
+                        0);
     }
 }

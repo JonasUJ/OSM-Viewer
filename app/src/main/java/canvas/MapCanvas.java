@@ -9,23 +9,21 @@ import com.jogamp.newt.javafx.NewtCanvasJFX;
 import com.jogamp.newt.opengl.GLWindow;
 import com.jogamp.opengl.util.Animator;
 import drawing.Category;
-import java.nio.FloatBuffer;
+import geometry.Point;
 import javafx.application.Platform;
 import javafx.scene.layout.Region;
 import javafx.scene.transform.Affine;
+import javafx.scene.transform.NonInvertibleTransformException;
 
 public class MapCanvas extends Region {
-    private final Affine transform = new Affine();
+    final Affine transform = new Affine();
     private Animator animator;
-    private FloatBuffer transformBuffer;
     private GLWindow window;
     private Renderer renderer;
 
     public final ObservableEnumFlags<Category> categories = new ObservableEnumFlags<>();
 
     public void init(Model model) {
-        recalculateTransform();
-
         // Boilerplate to let us use OpenGL from a JavaFX node hierarchy
         Platform.setImplicitExit(true);
         window = GLWindow.create(model.getCaps());
@@ -64,11 +62,11 @@ public class MapCanvas extends Region {
         widthProperty()
                 .addListener(
                         (observable, oldValue, newValue) ->
-                                window.setSize(newValue.intValue(), window.getHeight()));
+                                window.setSize(Math.max(1, newValue.intValue()), window.getHeight()));
         heightProperty()
                 .addListener(
                         (observable, oldValue, newValue) ->
-                                window.setSize(window.getWidth(), newValue.intValue()));
+                                window.setSize(window.getWidth(), Math.max(1, newValue.intValue())));
 
         canvas.setWidth(getPrefWidth());
         canvas.setHeight(getPrefHeight());
@@ -92,41 +90,33 @@ public class MapCanvas extends Region {
         window.addMouseListener(mouseListener);
     }
 
-    public FloatBuffer getTransformBuffer() {
-        return transformBuffer;
+    public Point canvasToMap(Point point) {
+        try {
+            return new Point(transform.inverseTransform(point.x(), point.y()));
+        } catch (NonInvertibleTransformException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void zoom(float zoom, float x, float y) {
-        transform.prependTranslation(-x, y);
+        transform.prependTranslation(-x, -y);
         transform.prependScale(zoom, zoom);
-        transform.prependTranslation(x, -y);
-        recalculateTransform();
+        transform.prependTranslation(x, y);
     }
 
     public void pan(float dx, float dy) {
-        transform.prependTranslation(dx, -dy);
-        recalculateTransform();
+        transform.prependTranslation(dx, dy);
     }
 
-    private void recalculateTransform() {
-        // Extract column major 4x4 matrix from Affine to buffer
-        transformBuffer =
-                FloatBuffer.allocate(16)
-                        .put((float) transform.getMxx())
-                        .put((float) transform.getMyx())
-                        .put(0)
-                        .put(0)
-                        .put((float) transform.getMxy())
-                        .put((float) transform.getMyy())
-                        .put(0)
-                        .put(0)
-                        .put(0)
-                        .put(0)
-                        .put(1)
-                        .put(0)
-                        .put((float) transform.getTx())
-                        .put((float) transform.getTy())
-                        .put(0)
-                        .put(1);
+    public void center(Point center) {
+        transform.setTx(-center.x() * transform.getMxx() + getWidth() / 2);
+        transform.setTy(-center.y() * transform.getMyy() + getHeight() / 2);
+
+    }
+
+    public void setZoom(float zoom){
+        transform.setMxx(zoom);
+        transform.setMyy(zoom);
+
     }
 }

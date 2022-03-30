@@ -52,8 +52,13 @@ public class AddressDatabase implements OSMObserver, Serializable {
 
     public void addAddress(AddressBuilder a){
         addToTrie(streetTrieBuilder, a.getStreet(), a);
-        addToTrie(cityTrieBuilder, a.getCity(), a);
-        addToTrie(postcodeTrieBuilder, a.getPostcode(), a);
+        if (a.getPostcode() != null) {
+            addToTrie(cityTrieBuilder, a.getCity(), a);
+        }
+        if (a.getPostcode() != null){
+            addToTrie(postcodeTrieBuilder, a.getPostcode(), a);
+        }
+
     }
 
     private void addToTrie(TrieBuilder<Set<AddressBuilder>> trie, String key, AddressBuilder value){

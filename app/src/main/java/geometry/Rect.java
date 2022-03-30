@@ -1,32 +1,39 @@
 package geometry;
 
-public record Rect(float left, float top, float right, float bottom) {
+import java.io.Serializable;
+
+public record Rect(double top, double left, double bottom, double right) implements Serializable {
     public Rect(Point topLeft, Point bottomRight) {
         this(topLeft.x(), topLeft.y(), bottomRight.x(), bottomRight.y());
     }
 
     public Point getTopLeft() {
-        return new Point(left(), top());
+        return new Point((float) left(), (float) top());
     }
 
     public Point getTopRight() {
-        return new Point(right(), top());
+        return new Point((float) right(), (float) top());
     }
 
     public Point getBottomLeft() {
-        return new Point(left(), bottom());
+        return new Point((float) left(), (float) bottom());
     }
 
     public Point getBottomRight() {
-        return new Point(right(), bottom());
+        return new Point((float) right(), (float) bottom());
+    }
+
+    public Point center() {
+        return new Point((float) (left + right) / 2, (float) (top + bottom) / 2);
     }
 
     public float distanceTo(Point point) {
         return (float) Math.sqrt(this.distanceSquaredTo(point));
     }
 
-    public float distanceSquaredTo(Point point) {
-        float dx = 0, dy = 0;
+    public double distanceSquaredTo(Point point) {
+        double dx = 0;
+        double dy = 0;
 
         if (point.x() < left) dx = point.x() - left;
         else if (point.x() > right) dx = point.x() - right;

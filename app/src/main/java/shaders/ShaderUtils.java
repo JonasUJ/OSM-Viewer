@@ -85,7 +85,6 @@ public class ShaderUtils {
 
         IntBuffer intBuffer = IntBuffer.allocate(1);
         gl.glGetProgramiv(programId, GL3.GL_LINK_STATUS, intBuffer);
-
         if (intBuffer.get(0) != 1) {
             gl.glGetProgramiv(programId, GL3.GL_INFO_LOG_LENGTH, intBuffer);
             int size = intBuffer.get(0);
@@ -97,20 +96,6 @@ public class ShaderUtils {
             throw new Exception("Error linking shader program!");
         }
 
-        gl.glValidateProgram(programId);
-
-        intBuffer = IntBuffer.allocate(1);
-        gl.glGetProgramiv(programId, GL3.GL_VALIDATE_STATUS, intBuffer);
-
-        if (intBuffer.get(0) != 1) {
-            gl.glGetProgramiv(programId, GL3.GL_INFO_LOG_LENGTH, intBuffer);
-            int size = intBuffer.get(0);
-            if (size > 0) {
-                ByteBuffer byteBuffer = ByteBuffer.allocate(size);
-                gl.glGetProgramInfoLog(programId, size, intBuffer, byteBuffer);
-                System.out.println(new String(byteBuffer.array()));
-            }
-            throw new Exception("Error validating shader program!");
-        }
+       
     }
 }

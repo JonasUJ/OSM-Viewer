@@ -1,13 +1,13 @@
 package osm;
 
-import osm.elements.OSMBounds;
+import geometry.Rect;
 import osm.elements.OSMNode;
 import osm.elements.OSMRelation;
 import osm.elements.OSMWay;
 
 public interface OSMObserver {
     // Don't like default? Sue me.
-    default void onBounds(OSMBounds bounds) {}
+    default void onBounds(Rect bounds) {}
 
     default void onNode(OSMNode node) {}
 

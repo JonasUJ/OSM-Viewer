@@ -2,6 +2,7 @@ package application;
 
 import canvas.Controller;
 import canvas.Model;
+import geometry.Point;
 import java.io.IOException;
 import javafx.fxml.FXMLLoader;
 import javafx.stage.Stage;
@@ -17,5 +18,7 @@ public class View {
         stage.setOnCloseRequest(event -> controller.dispose());
         stage.setTitle("OSM Viewer (OpenGL)");
         stage.show();
+
+        controller.centerOn(Point.geoToMap(model.bounds.center()));
     }
 }

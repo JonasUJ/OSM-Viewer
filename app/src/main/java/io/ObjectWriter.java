@@ -1,11 +1,11 @@
 package io;
 
+import geometry.Rect;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import osm.OSMObserver;
-import osm.elements.OSMBounds;
 import osm.elements.OSMNode;
 import osm.elements.OSMRelation;
 import osm.elements.OSMWay;
@@ -28,7 +28,7 @@ public class ObjectWriter<T extends OSMObserver & Serializable> implements Write
     }
 
     @Override
-    public void onBounds(OSMBounds bounds) {
+    public void onBounds(Rect bounds) {
         obj.onBounds(bounds);
     }
 

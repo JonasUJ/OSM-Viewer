@@ -1,0 +1,49 @@
+#allVBox {
+    -fx-font-size: 16px;
+    -fx-font-family: "Times New Roman", Times, serif;
+    -fx-background-color: linear-gradient(to right, red, blue);
+    
+}
+.button {
+    -fx-background-radius: 10px;
+    -fx-background-color: linear-gradient(to right, rgb(255, 0, 212), rgb(255, 0, 0));
+    -fx-text-fill: #ffffff;
+}
+
+.label {
+    -fx-text-fill: #ffffff;
+}
+
+.radio-button {
+    -fx-text-fill: #ffffff;
+}
+
+.radio-button .radio {
+    -fx-background-color: white;
+    -fx-border-color:grey;
+    -fx-border-radius: 15px;
+    -fx-padding: 3px;
+}
+
+.radio-button .radio:selected {
+    -fx-background-color: white;
+    -fx-border-color:grey;
+} 
+
+.check-box {
+    -fx-text-fill: #ffffff;
+}
+
+.check-box .box {
+    -fx-background-color: white;
+    -fx-border-color:grey;
+    -fx-border-radius:3px;  
+}
+
+.check-box:selected .mark {
+    -fx-background-color: white;
+}
+
+.check-box:selected .box {
+    -fx-background-color: linear-gradient(to left, rgb(0, 255, 34),rgb(38, 0, 255));
+}

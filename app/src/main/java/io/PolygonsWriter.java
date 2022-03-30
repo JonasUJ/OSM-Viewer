@@ -4,9 +4,12 @@ import drawing.Drawable;
 import drawing.Drawing;
 import drawing.Segment;
 import drawing.SegmentJoiner;
+import geometry.Point;
+import geometry.Rect;
 import geometry.Vector2D;
 import java.io.*;
 import java.util.Arrays;
+import java.util.List;
 import osm.elements.*;
 
 /** Writes Drawings to a file as they are finished */
@@ -51,12 +54,28 @@ public class PolygonsWriter extends TempFileWriter {
     }
 
     @Override
+    public void onBounds(Rect bounds) {
+        drawing.drawLine(
+                List.of(
+                        new Vector2D(Point.geoToMap(bounds.getTopLeft())),
+                        new Vector2D(Point.geoToMap(bounds.getTopRight())),
+                        new Vector2D(Point.geoToMap(bounds.getBottomRight())),
+                        new Vector2D(Point.geoToMap(bounds.getBottomLeft())),
+                        new Vector2D(Point.geoToMap(bounds.getTopLeft()))),
+                Drawable.BOUNDS,
+                0);
+    }
+
+    @Override
     public void onWay(OSMWay way) {
         var drawable = Drawable.from(way);
         if (drawable == Drawable.IGNORED || drawable == Drawable.UNKNOWN) return;
 
         // Transform nodes to points
-        var points = Arrays.stream(way.nodes()).map(n -> new Vector2D(n.lon(), n.lat())).toList();
+        var points =
+                Arrays.stream(way.nodes())
+                        .map(n -> new Vector2D(Point.geoToMapX(n.lon()), Point.geoToMapY(n.lat())))
+                        .toList();
 
         switch (drawable.shape) {
             case POLYLINE -> drawing.drawLine(points, drawable, vertexCount / 2, true);
@@ -86,7 +105,9 @@ public class PolygonsWriter extends TempFileWriter {
         // Draw all the segments
         for (var segment : joiner) {
             drawing.drawPolygon(
-                    segment.stream().map(n -> new Vector2D(n.lon(), n.lat())).toList(),
+                    segment.stream()
+                            .map(n -> new Vector2D(Point.geoToMapX(n.lon()), Point.geoToMapY(n.lat())))
+                            .toList(),
                     drawable,
                     vertexCount / 2,
                     true);

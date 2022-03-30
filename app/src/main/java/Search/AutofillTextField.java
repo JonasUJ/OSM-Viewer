@@ -8,6 +8,7 @@ import java.util.List;
 public class AutofillTextField extends TextField {
     AutofillContextMenu popupEntries;
     AddressDatabase addressDatabase;
+    Address currentAddress;
 
     public AutofillTextField(){
     }
@@ -61,4 +62,11 @@ public class AutofillTextField extends TextField {
         //TODO
     }
 
+    public Address getCurrentAddress() {
+        return currentAddress;
+    }
+
+    public void setCurrentAddress(Address currentAddress) {
+        this.currentAddress = currentAddress;
+    }
 }
