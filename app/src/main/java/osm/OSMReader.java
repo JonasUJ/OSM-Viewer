@@ -38,7 +38,7 @@ public class OSMReader {
     private boolean advanceAfter;
 
     public OSMReader() {
-        addObservers(nodes, ways, relations, new ReaderStats());
+        addObservers(nodes, ways, relations);
     }
 
     public void parse(InputStream stream) throws XMLStreamException {
@@ -80,7 +80,10 @@ public class OSMReader {
 
         var bounds =
                 new Rect(
-                        getDouble("minlat"), getDouble("minlon"), getDouble("maxlat"), getDouble("maxlon"));
+                        (float) getDouble("minlat"),
+                        (float) getDouble("minlon"),
+                        (float) getDouble("maxlat"),
+                        (float) getDouble("maxlon"));
         advance();
 
         for (var observer : observers) {

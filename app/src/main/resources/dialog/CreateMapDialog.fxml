@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/11.0.2" xmlns:fx="http://javafx.com/fxml/1" fx:controller="dialog.CreateMapDialog">
+    <top>
+        <Label fx:id="header" text="Select map features">
+            <BorderPane.margin>
+                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+            </BorderPane.margin>
+            <font>
+                <Font size="18.0" />
+            </font>
+        </Label>
+    </top>
+    <left>
+        <VBox fx:id="checkboxes" spacing="8.0" BorderPane.alignment="TOP_CENTER">
+            <BorderPane.margin>
+                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+            </BorderPane.margin>
+        </VBox>
+    </left>
+    <right>
+        <GridPane fx:id="statsGrid" hgap="8.0" minWidth="200.0" vgap="8.0" visible="false">
+            <padding>
+                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+            </padding>
+            <Label text="Totals" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+            <Label text="Throughput" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+            <Label fx:id="nodeTotal" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+            <Label fx:id="nodeThroughput" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+            <Label fx:id="wayTotal" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+            <Label fx:id="wayThroughput" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+            <Label fx:id="relationTotal" GridPane.columnIndex="0" GridPane.rowIndex="3" />
+            <Label fx:id="relationThroughput" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+         <columnConstraints>
+            <ColumnConstraints />
+            <ColumnConstraints />
+         </columnConstraints>
+         <rowConstraints>
+            <RowConstraints />
+            <RowConstraints />
+            <RowConstraints />
+            <RowConstraints />
+         </rowConstraints>
+        </GridPane>
+    </right>
+    <bottom>
+        <HBox alignment="CENTER_RIGHT" spacing="8">
+            <Button fx:id="next" onAction="#next" style="-fx-background-color: #3498DB" text="Next" />
+            <Button fx:id="cancel" onAction="#cancel" text="Cancel" />
+            <BorderPane.margin>
+                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+            </BorderPane.margin>
+        </HBox>
+    </bottom>
+</BorderPane>

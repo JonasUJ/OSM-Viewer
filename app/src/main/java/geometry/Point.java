@@ -2,7 +2,9 @@ package geometry;
 
 import javafx.geometry.Point2D;
 
-public record Point(float x, float y) {
+import java.io.Serializable;
+
+public record Point(float x, float y) implements Serializable {
     public Point(Point2D point) {
         this((float) point.getX(), (float) point.getY());
     }

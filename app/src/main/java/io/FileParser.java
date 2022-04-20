@@ -1,64 +1,62 @@
 package io;
 
-import Search.AddressDatabase;
+import features.Feature;
+import features.FeatureSet;
 import java.io.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.zip.ZipFile;
 import javafx.util.Pair;
 import javax.xml.stream.XMLStreamException;
-import navigation.Dijkstra;
 import org.anarres.parallelgzip.ParallelGZIPInputStream;
 import org.anarres.parallelgzip.ParallelGZIPOutputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.archivers.tar.TarFile;
 import org.apache.commons.compress.utils.IOUtils;
+import osm.OSMObserver;
 import osm.OSMReader;
 import osm.elements.OSMBounds;
 
 // TODO: Use a custom exception type instead of RuntimeException for when parsing fails.
 public class FileParser implements IOConstants {
-    private static final String EXT = ".gz.tar";
-    private static final String POLYGONS = "polygons";
-    private static final String DIJKSTRA = "dijkstra";
-    private static final String ADDRESSES = "addresses";
-    private static final String BOUNDS = "bounds";
+    public static final String EXT = ".map";
+    private static final String FEATURES = "FEATURES";
+    private static final String BOUNDS = "BOUNDS";
 
-    public static ReadResult readFile(String filename) throws IOException, XMLStreamException {
-        if (filename.matches(".*(\\.osm|\\.xml)(\\.zip)?$")) {
-            filename = createMapFromOsm(filename);
-            System.gc();
-        }
-
-        if (filename.endsWith(EXT)) {
-            return readMap(filename);
-        }
-
-        throw new IllegalArgumentException(
-                "Only .osm, .xml, any of those zipped, or " + EXT + " are allowed");
-    }
-
-    private static String createMapFromOsm(String infile) throws IOException, XMLStreamException {
+    public static File createMapFromOsm(File infile, FeatureSet features, OSMObserver... observers)
+            throws IOException, XMLStreamException {
         var reader = new OSMReader();
-        var polygonsWriter = new PolygonsWriter();
-        var dijkstraWriter = new ObjectWriter<>(new Dijkstra());
-        var addressWriter = new ObjectWriter<>(new AddressDatabase());
-        var boundsWriter = new ObjectWriter<>(new OSMBounds());
-        reader.addObservers(polygonsWriter, dijkstraWriter, addressWriter, boundsWriter);
+        var writers = new ArrayList<Pair<String, Writer>>();
+
+        writers.add(new Pair<>(FEATURES, new ObjectWriter<>(features)));
+        writers.add(new Pair<>(BOUNDS, new ObjectWriter<>(new OSMBounds())));
+
+        for (var feature : features) {
+            writers.add(new Pair<>(feature.name(), feature.createWriter()));
+        }
+
+        for (var writer : writers) {
+            reader.addObservers(writer.getValue());
+        }
+
+        reader.addObservers(observers);
 
         reader.parse(getInputStream(infile));
 
-        var outfile = infile.split("\\.")[0] + EXT;
-        createMapFromWriters(
-                outfile,
-                new Pair<>(POLYGONS, polygonsWriter),
-                new Pair<>(DIJKSTRA, dijkstraWriter),
-                new Pair<>(ADDRESSES, addressWriter),
-                new Pair<>(BOUNDS, boundsWriter));
+        var outfile =
+                new File(
+                        infile.getPath().substring(0, infile.getPath().length() - infile.getName().length())
+                                + infile.getName().split("\\.")[0]
+                                + EXT);
+        createMapFromWriters(outfile, writers);
+
+        System.gc();
 
         return outfile;
     }
 
-    @SafeVarargs
-    private static void createMapFromWriters(String outfile, Pair<String, Writer>... pairs)
+    private static void createMapFromWriters(File outfile, List<Pair<String, Writer>> pairs)
             throws IOException {
         try (var tarStream =
                 new TarArchiveOutputStream(
@@ -83,13 +81,15 @@ public class FileParser implements IOConstants {
         return file;
     }
 
-    private static ReadResult readMap(String filename) throws IOException {
-        var tarFile = new TarFile(new File(filename));
+    public static ReadResult readMap(File file) throws IOException {
+        var tarFile = new TarFile(file);
+        var readers = new HashMap<Feature, Reader>();
+        var features = new ObjectReader<FeatureSet>(getEntryStream(FEATURES, tarFile)).read();
+        for (var feature : features) {
+            readers.put(feature, feature.createReader(getEntryStream(feature.name(), tarFile)));
+        }
         return new ReadResult(
-                new PolygonsReader(getEntryStream(POLYGONS, tarFile)),
-                new ObjectReader<>(getEntryStream(DIJKSTRA, tarFile)),
-                new ObjectReader<>(getEntryStream(ADDRESSES, tarFile)),
-                new ObjectReader<>(getEntryStream(BOUNDS, tarFile)));
+                readers, new ObjectReader<OSMBounds>(getEntryStream(BOUNDS, tarFile)).read());
     }
 
     private static ObjectInputStream getEntryStream(String name, TarFile tarFile) throws IOException {
@@ -102,13 +102,13 @@ public class FileParser implements IOConstants {
                                         .orElseThrow())));
     }
 
-    private static InputStream getInputStream(String filename) throws IOException {
-        if (filename.endsWith(".zip")) {
-            var zipFile = new ZipFile(filename);
+    private static InputStream getInputStream(File file) throws IOException {
+        if (file.getName().endsWith(".zip")) {
+            var zipFile = new ZipFile(file);
             var entry = zipFile.entries().nextElement();
             return new BufferedInputStream(zipFile.getInputStream(entry), BUFFER_SIZE);
         }
 
-        return new BufferedInputStream(new FileInputStream(filename), BUFFER_SIZE);
+        return new BufferedInputStream(new FileInputStream(file), BUFFER_SIZE);
     }
 }

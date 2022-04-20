@@ -1,21 +1,15 @@
 package io;
 
-import Search.AddressDatabase;
-import navigation.Dijkstra;
+import features.Feature;
+import java.util.Map;
 import osm.elements.OSMBounds;
 
 /** Object to manage multiple readers read from a file */
-public record ReadResult(
-        PolygonsReader polygons,
-        ObjectReader<Dijkstra> dijkstra,
-        ObjectReader<AddressDatabase> addresses,
-        ObjectReader<OSMBounds> bounds)
-        implements AutoCloseable {
+public record ReadResult(Map<Feature, Reader> readers, OSMBounds bounds) implements AutoCloseable {
     @Override
     public void close() throws Exception {
-        polygons.close();
-        dijkstra.close();
-        addresses.close();
-        bounds.close();
+        for (var reader : readers().values()) {
+            reader.close();
+        }
     }
 }

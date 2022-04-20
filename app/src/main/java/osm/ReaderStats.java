@@ -1,5 +1,8 @@
 package osm;
 
+import javafx.application.Platform;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleLongProperty;
 import osm.elements.OSMNode;
 import osm.elements.OSMRelation;
 import osm.elements.OSMWay;
@@ -13,20 +16,42 @@ public class ReaderStats implements OSMObserver {
     private long curWayCount = 0;
     private long curRelationCount = 0;
 
+    public final LongProperty nodeTotal = new SimpleLongProperty();
+    public final LongProperty wayTotal = new SimpleLongProperty();
+    public final LongProperty relationTotal = new SimpleLongProperty();
+    public final LongProperty nodeThroughput = new SimpleLongProperty();
+    public final LongProperty wayThroughput = new SimpleLongProperty();
+    public final LongProperty relationThroughput = new SimpleLongProperty();
+
+    private final long updateInterval;
     private long lastUpdate = System.nanoTime();
 
+    public ReaderStats(long updateInterval) {
+        this.updateInterval = updateInterval;
+    }
+
     private void checkUpdate() {
-        if (System.nanoTime() - lastUpdate < 1_000_000_000) return; // Every second
+        if (System.nanoTime() - lastUpdate < updateInterval) return; // Every second
+        update();
+    }
+
+    private void update() {
         lastUpdate = System.nanoTime();
 
-        System.out.printf(
-                "\r%d nodes (%d nodes/s) : %d ways (%d ways/s) : %d relations (%d relations/s)",
-                curNodeCount,
-                curNodeCount - prevNodeCount,
-                curWayCount,
-                curWayCount - prevWayCount,
-                curRelationCount,
-                curRelationCount - prevRelationCount);
+        long nodeTP = curNodeCount - prevNodeCount;
+        long wayTP = curWayCount - prevWayCount;
+        long relationTP = curRelationCount - prevRelationCount;
+
+        Platform.runLater(
+                () -> {
+                    nodeTotal.set(curNodeCount);
+                    wayTotal.set(curWayCount);
+                    relationTotal.set(curRelationCount);
+                    nodeThroughput.set(nodeTP);
+                    wayThroughput.set(wayTP);
+                    relationThroughput.set(relationTP);
+                });
+
         prevNodeCount = curNodeCount;
         prevWayCount = curWayCount;
         prevRelationCount = curRelationCount;
@@ -52,8 +77,9 @@ public class ReaderStats implements OSMObserver {
 
     @Override
     public void onFinish() {
-        System.out.println("\rParsed: " + curNodeCount + " nodes");
-        System.out.println("Parsed: " + curWayCount + " ways");
-        System.out.println("Parsed: " + curRelationCount + " relations");
+        prevNodeCount = curNodeCount;
+        prevWayCount = curWayCount;
+        prevRelationCount = curRelationCount;
+        update();
     }
 }

@@ -1,11 +1,16 @@
 package canvas;
 
+import collections.Entity;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
 import drawing.Drawable;
+import drawing.Drawing;
+import drawing.DrawingManager;
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import javafx.scene.paint.Color;
 import javafx.scene.transform.Affine;
 import javafx.scene.transform.MatrixType;
@@ -25,6 +30,7 @@ public class Renderer implements GLEventListener {
         }
     }
 
+    private final DrawingManager manager = new DrawingManager();
     private final Color clear = Drawable.WATER.color;
     private final Model model;
     private final MapCanvas canvas;
@@ -32,31 +38,86 @@ public class Renderer implements GLEventListener {
     private Shader shader;
     private Shader nextShader;
     private Affine projection;
+    private VBOWrapper indexVBO;
+    private VBOWrapper vertexVBO;
+    private VBOWrapper drawableVBO;
 
     public Renderer(Model model, MapCanvas canvas) {
         this.model = model;
         this.canvas = canvas;
     }
 
+    /**
+     * Add a drawing to the renderer, causing it to be rendered from the next frame onwards.
+     *
+     * @param drawing The drawing to render.
+     * @return The actual drawing that was rendered. Can be used with `clear` to later remove this
+     *     drawing from the renderer.
+     */
+    public Drawing draw(Drawing drawing) {
+        var info = manager.draw(drawing);
+        updateInfo(info);
+        return info.drawing();
+    }
+
+    /** Clear all drawings from the renderer. */
+    public void clear() {
+        manager.clear();
+    }
+
+    /**
+     * Clear a drawing from the renderer.
+     *
+     * @param drawing The drawing to stop rendering.
+     */
+    public void clear(Entity drawing) {
+        var info = manager.clear(drawing);
+        updateInfo(info);
+    }
+
+    private void updateInfo(DrawingManager.DrawingInfo info) {
+        // Upload new triangles to OpenGL
+        model
+                .getSharedDrawable()
+                .invoke(
+                        true,
+                        glAutoDrawable -> {
+                            indexVBO.set(
+                                    IntBuffer.wrap(info.drawing().indices().getArray()),
+                                    info.indicesStart(),
+                                    info.drawing().indices().size());
+                            vertexVBO.set(
+                                    FloatBuffer.wrap(info.drawing().vertices().getArray()),
+                                    info.verticesStart(),
+                                    info.drawing().vertices().size());
+                            drawableVBO.set(
+                                    ByteBuffer.wrap(info.drawing().drawables().getArray()),
+                                    info.drawablesStart(),
+                                    info.drawing().drawables().size());
+                            return true;
+                        });
+    }
+
     public void setShader(Shader newShader) {
         nextShader = newShader;
     }
 
-    private ShaderProgram setShader(GLAutoDrawable glAutoDrawable) {
+    private ShaderProgram setShader(
+            GLAutoDrawable glAutoDrawable, VBOWrapper vertexVBO, VBOWrapper drawableVBO) {
         GL3 gl = glAutoDrawable.getGL().getGL3();
 
         shader = nextShader;
         var shaderProgram = shaderPrograms[shader.ordinal()];
 
         // Set the current buffer to the vertex vbo
-        gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, model.getVBO(Model.VBOType.VERTEX));
+        vertexVBO.bind();
         // Tell OpenGL that the current buffer holds position data. 2 floats per position.
         gl.glVertexAttribPointer(
                 shaderProgram.getLocation(Location.POSITION), 2, GL3.GL_FLOAT, false, 0, 0);
         gl.glEnableVertexAttribArray(shaderProgram.getLocation(Location.POSITION));
 
         // Set the current buffer to the drawable vbo. We're done initialising the vertex vbo now.
-        gl.glBindBuffer(GL3.GL_ARRAY_BUFFER, model.getVBO(Model.VBOType.DRAWABLE));
+        drawableVBO.bind();
         // Tell OpenGL that the current buffer holds drawable data. 1 byte per drawable.
         gl.glVertexAttribIPointer(
                 shaderProgram.getLocation(Location.DRAWABLE_ID), 1, GL3.GL_BYTE, 0, 0);
@@ -118,26 +179,38 @@ public class Renderer implements GLEventListener {
 
         setShader(Shader.DEFAULT);
 
+        var sizeEstimate = 2 * 1024 * 1024;
+        indexVBO =
+                new VBOWrapper(glAutoDrawable, GL3.GL_ELEMENT_ARRAY_BUFFER, sizeEstimate * Integer.BYTES);
+        vertexVBO = new VBOWrapper(glAutoDrawable, GL3.GL_ARRAY_BUFFER, sizeEstimate * Float.BYTES);
+        drawableVBO =
+                new VBOWrapper(glAutoDrawable, GL3.GL_ARRAY_BUFFER, sizeEstimate / 2 * Byte.BYTES);
+
         // Set the current index buffer to the index buffer from the model
-        gl.glBindBuffer(GL3.GL_ELEMENT_ARRAY_BUFFER, model.getVBO(Model.VBOType.INDEX));
+        gl.glBindBuffer(GL3.GL_ELEMENT_ARRAY_BUFFER, model.getVBO(Model.VBOType.INDEX).vbo);
     }
 
     @Override
     public void dispose(GLAutoDrawable glAutoDrawable) {
         GL3 gl = glAutoDrawable.getGL().getGL3();
-        shaderPrograms[shader.ordinal()].dispose(gl);
+        for (var shaderProgram : shaderPrograms) {
+            shaderProgram.dispose(gl);
+        }
+        indexVBO.dispose();
+        vertexVBO.dispose();
+        drawableVBO.dispose();
     }
 
     @Override
     public void display(GLAutoDrawable glAutoDrawable) {
         GL3 gl = glAutoDrawable.getGL().getGL3();
 
-        ShaderProgram shaderProgram;
-        if (shader != nextShader) {
-            shaderProgram = setShader(glAutoDrawable);
-        } else {
-            shaderProgram = shaderPrograms[shader.ordinal()];
-        }
+        model.getVBO(Model.VBOType.INDEX).bind();
+        ShaderProgram shaderProgram =
+                setShader(
+                        glAutoDrawable,
+                        model.getVBO(Model.VBOType.VERTEX),
+                        model.getVBO(Model.VBOType.DRAWABLE));
 
         // Set the color used when clearing the screen
         gl.glClearColor(
@@ -171,6 +244,32 @@ public class Renderer implements GLEventListener {
         // Draw `model.getCount()` many triangles
         // This will use the currently bound index buffer
         gl.glDrawElements(GL3.GL_TRIANGLES, model.getCount(), GL3.GL_UNSIGNED_INT, 0);
+
+        indexVBO.bind();
+        shaderProgram = setShader(glAutoDrawable, vertexVBO, drawableVBO);
+
+        gl.glUseProgram(shaderProgram.getProgramId());
+
+        gl.glUniformMatrix4fv(
+                shaderProgram.getLocation(Location.PROJECTION), 1, false, affineToBuffer(transform));
+
+        gl.glActiveTexture(GL3.GL_TEXTURE0);
+        gl.glBindTexture(GL3.GL_TEXTURE_1D, model.getTex(Model.TexType.COLOR_MAP));
+        gl.glUniform1i(shaderProgram.getLocation(Location.COLOR_MAP), 0);
+
+        gl.glActiveTexture(GL3.GL_TEXTURE1);
+        gl.glBindTexture(GL3.GL_TEXTURE_1D, model.getTex(Model.TexType.MAP));
+        gl.glUniform1i(shaderProgram.getLocation(Location.MAP), 1);
+
+        gl.glUniform1ui(
+                shaderProgram.getLocation(Location.CATEGORY_BITSET), canvas.categories.getFlags());
+        gl.glUniform1f(
+                shaderProgram.getLocation(Location.TIME),
+                (float) (System.currentTimeMillis() % (2000 * Math.PI) / 1000.0));
+
+        // Draw `manager.drawing().indices().size()` many triangles
+        // This will use the currently bound index buffer
+        gl.glDrawElements(GL3.GL_TRIANGLES, manager.drawing().indices().size(), GL3.GL_UNSIGNED_INT, 0);
 
         gl.glUseProgram(0);
     }

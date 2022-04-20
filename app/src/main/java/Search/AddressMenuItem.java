@@ -13,6 +13,13 @@ public class AddressMenuItem extends CustomMenuItem{
         setHideOnClick(true);
     }
 
+    public AddressMenuItem(Address address){
+        this.address = address;
+
+        this.setContent(getTextToShow(true, true, true, true));
+        setHideOnClick(true);
+    }
+
     private Text getTextToShow(boolean showStreet, boolean showHouse, boolean showCity, boolean showPostcode) {
         StringBuilder stringBuilder = new StringBuilder();
 

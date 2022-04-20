@@ -1,4 +1,4 @@
-package collections.spacial;
+package collections.spatial;
 
 import geometry.Point;
 

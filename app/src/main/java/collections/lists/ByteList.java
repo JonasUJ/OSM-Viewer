@@ -44,7 +44,11 @@ public class ByteList implements Serializable {
     }
 
     public void truncate(int count) {
-        n -= count;
+        n -= Math.min(n, count);
+    }
+
+    public void limit(int count) {
+        n -= Math.min(n, n - count);
     }
 
     void grow() {

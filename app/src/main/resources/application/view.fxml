@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.Scene?>
+<?import pointsOfInterest.PointsOfInterestVBox?>
+<?import Search.SearchTextField?>
+<?import canvas.MapCanvas?>
+<Scene xmlns="http://javafx.com/javafx"
+       xmlns:fx="http://javafx.com/fxml"
+       fx:controller="view.Controller"
+       fx:id="scene">
+
+    <BorderPane>
+        <left>
+            <VBox id="allVBox" fx:id="leftVBox">
+                <padding>
+                    <Insets top="10" bottom="10" left="10" right="10"/>
+                </padding>
+                <GridPane alignment="center" hgap="10" vgap="10">
+                    <SearchTextField fx:id="searchTextField" promptText="Search an address" GridPane.columnIndex="0"
+                                     GridPane.rowIndex="0" onAction="#handleSearchClick" onKeyTyped="#handleKeyTyped"
+                                     onMouseClicked="#handleInFocus"/>
+                    <HBox spacing="10" alignment="bottom_right" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                        <Button fx:id="searchButton" id="allButtons" text="Search" onAction="#handleSearchClick">
+                        </Button>
+                    </HBox>
+                    <TextField fx:id="fromRouteTextField" promptText="From" GridPane.columnIndex="0"
+                               GridPane.rowIndex="2"/>
+                    <TextField fx:id="toRouteTextField" promptText="To" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                    <HBox spacing="10" alignment="bottom_right" GridPane.columnIndex="0" GridPane.rowIndex="4">
+                        <Button fx:id="routeButton" id="allButtons" text="Find route" onAction="#handleRouteClick"/>
+                    </HBox>
+                    <HBox spacing="10" GridPane.columnIndex="0" GridPane.rowIndex="5">
+                        <fx:define>
+                            <ToggleGroup fx:id="groupRoute"/>
+                        </fx:define>
+                        <RadioButton fx:id="radioButtonCar" text="Car" toggleGroup="$groupRoute" selected="true"/>
+                        <RadioButton fx:id="radioButtonBikeOrWalk" text="Bike or walk" toggleGroup="$groupRoute"/>
+                    </HBox>
+                </GridPane>
+            </VBox>
+        </left>
+        <right>
+            <VBox id="allVBox" fx:id="rightVBox">
+                <padding>
+                    <Insets top="10" bottom="10" left="10" right="10"/>
+                </padding>
+                <GridPane alignment="center" hgap="10" vgap="10">
+                    <Label text="Select what to show" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                    <CheckBox fx:id="checkBoxBuildings" text="Buildings" GridPane.columnIndex="0"
+                              GridPane.rowIndex="1" selected="true"/>
+                    <CheckBox fx:id="checkBoxHighways" text="Highways" GridPane.columnIndex="0" GridPane.rowIndex="2" selected="true"/>
+                    <CheckBox fx:id="checkBoxWater" text="Water" GridPane.columnIndex="0" GridPane.rowIndex="3" selected="true"/>
+                    <Label text="Select mode" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+                    <fx:define>
+                        <ToggleGroup fx:id="groupMode"/>
+                    </fx:define>
+                    <RadioButton fx:id="radioButtonColorBlind" text="Colorblind mode" GridPane.columnIndex="0"
+                                 GridPane.rowIndex="6" toggleGroup="$groupMode" onAction="#handleColorblind"/>
+                    <RadioButton fx:id="radioButtonDefaultMode" text="Default mode" GridPane.columnIndex="0"
+                                 GridPane.rowIndex="7" toggleGroup="$groupMode" onAction="#handleDefaultMode" selected="true"/>
+                    <RadioButton fx:id="radioButtonPartyMode" text="Party mode" GridPane.columnIndex="0"
+                                 GridPane.rowIndex="8" toggleGroup="$groupMode" onAction="#handlePartyMode"/>
+                    <HBox fx:id="pointsOfInterestHeader" GridPane.columnIndex="0" GridPane.rowIndex="9">
+                        <Label text="Points of interest" GridPane.columnIndex="0" GridPane.rowIndex="9"/>
+                        <Button text="+" fx:id="addPointOfInterest" onAction="#enterPointOfInterestMode"/>
+
+                    </HBox>
+
+                    <PointsOfInterestVBox id="allVBox" fx:id="pointsOfInterestVBox" GridPane.rowIndex="10"/>
+
+                </GridPane>
+            </VBox>
+        </right>
+        <top>
+            <MenuBar>
+                <Menu text="File">
+                    <MenuItem text="Open map file" onAction="#openMap"/>
+                    <MenuItem text="Create and open map file" onAction="#createMap"/>
+                </Menu>
+                <Menu text="Appearance">
+                    <Menu fx:id="categories" text="Toggle categories"/>
+                </Menu>
+            </MenuBar>
+        </top>
+        <center>
+            <MapCanvas fx:id="canvas" prefWidth="1280" prefHeight="720"/>
+        </center>
+        <bottom>
+            <HBox>
+                <padding>
+                    <Insets topRightBottomLeft="4"/>
+                </padding>
+                <Label id="nearestRoadLabel" fx:id="nearestRoadLabel">
+                    <contextMenu>
+                        <ContextMenu>
+                            <items>
+                                <CheckMenuItem fx:id="nearestRoadDelayItem" text="Enable delay" selected="true"/>
+                            </items>
+                        </ContextMenu>
+                    </contextMenu>
+                </Label>
+            </HBox>
+        </bottom>
+    </BorderPane>
+</Scene>

@@ -1,9 +1,6 @@
 package io;
 
-import drawing.Drawable;
-import drawing.Drawing;
-import drawing.Segment;
-import drawing.SegmentJoiner;
+import drawing.*;
 import geometry.Point;
 import geometry.Rect;
 import geometry.Vector2D;
@@ -18,7 +15,7 @@ public class PolygonsWriter extends TempFileWriter {
     private int indexCount;
     private int vertexCount;
     private int drawableCount;
-    private Drawing drawing = new Drawing();
+    private final DrawingManager manager = new DrawingManager();
 
     public PolygonsWriter() throws IOException {}
 
@@ -34,6 +31,8 @@ public class PolygonsWriter extends TempFileWriter {
 
     // Write a single Drawing to the stream and forget about it afterwards
     private void writeDrawing() {
+        var drawing = manager.drawing();
+
         indexCount += drawing.indices().size();
         vertexCount += drawing.vertices().size();
         drawableCount += drawing.drawables().size();
@@ -50,20 +49,19 @@ public class PolygonsWriter extends TempFileWriter {
             throw new RuntimeException("could not write drawing to stream");
         }
 
-        drawing = new Drawing();
+        manager.clear();
     }
 
     @Override
     public void onBounds(Rect bounds) {
-        drawing.drawLine(
+        manager.draw(
                 List.of(
                         new Vector2D(Point.geoToMap(bounds.getTopLeft())),
                         new Vector2D(Point.geoToMap(bounds.getTopRight())),
                         new Vector2D(Point.geoToMap(bounds.getBottomRight())),
                         new Vector2D(Point.geoToMap(bounds.getBottomLeft())),
                         new Vector2D(Point.geoToMap(bounds.getTopLeft()))),
-                Drawable.BOUNDS,
-                0);
+                Drawable.BOUNDS);
     }
 
     @Override
@@ -77,12 +75,9 @@ public class PolygonsWriter extends TempFileWriter {
                         .map(n -> new Vector2D(Point.geoToMapX(n.lon()), Point.geoToMapY(n.lat())))
                         .toList();
 
-        switch (drawable.shape) {
-            case POLYLINE -> drawing.drawLine(points, drawable, vertexCount / 2, true);
-            case FILL -> drawing.drawPolygon(points, drawable, vertexCount / 2, true);
-        }
+        manager.drawOrdered(points, drawable, vertexCount / 2);
 
-        if (drawing.byteSize() >= BUFFER_SIZE) writeDrawing();
+        if (manager.byteSize() >= BUFFER_SIZE) writeDrawing();
     }
 
     @Override
@@ -104,16 +99,15 @@ public class PolygonsWriter extends TempFileWriter {
 
         // Draw all the segments
         for (var segment : joiner) {
-            drawing.drawPolygon(
+            manager.drawOrdered(
                     segment.stream()
                             .map(n -> new Vector2D(Point.geoToMapX(n.lon()), Point.geoToMapY(n.lat())))
                             .toList(),
                     drawable,
-                    vertexCount / 2,
-                    true);
+                    vertexCount / 2);
         }
 
-        if (drawing.byteSize() >= BUFFER_SIZE) writeDrawing();
+        if (manager.byteSize() >= BUFFER_SIZE) writeDrawing();
     }
 
     @Override
