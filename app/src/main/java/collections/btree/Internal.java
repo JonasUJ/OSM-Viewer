@@ -35,7 +35,7 @@ class Internal<E> implements Page<E> {
     private Entry<E> split(Entry<E> e) {
         var newPage = new Internal<>(entries.split(e));
 
-        var entry = newPage.entries.get(0);
+        var entry = newPage.entries.lowest();
         return new Entry<>(entry.key(), newPage);
     }
 

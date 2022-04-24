@@ -44,7 +44,7 @@ public class BTreeSet<E> {
 
         // Root is not Internal for the first M add calls
         if (root instanceof Internal<E> internal) {
-            var entry = internal.entries.get(0);
+            var entry = internal.entries.lowest();
             newRoot.entries.insert(new Entry<>(entry.key(), root));
         } else {
             newRoot.entries.insert(new Entry<>((E) sentinel, root));

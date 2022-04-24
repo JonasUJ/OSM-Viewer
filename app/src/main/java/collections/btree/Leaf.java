@@ -16,7 +16,7 @@ class Leaf<E> implements Page<E> {
     @Override
     public Entry<E> add(E e) {
         if (entities.isFull() && !entities.contains(e)) {
-                return split(e);
+            return split(e);
         }
 
         entities.insert(e);
@@ -33,14 +33,11 @@ class Leaf<E> implements Page<E> {
         //     right.left = newRight;
         // right = newRight;
 
-        return new Entry<>(newRight.entities.get(0), newRight);
+        return new Entry<>(newRight.entities.lowest(), newRight);
     }
 
     @Override
     public E get(E key) {
-        var idx = -entities.find(key) - 1;
-        if (idx < 0) return null;
-
-        return entities.get(idx);
+        return entities.get(key);
     }
 }

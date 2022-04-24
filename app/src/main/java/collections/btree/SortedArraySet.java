@@ -67,6 +67,17 @@ class SortedArraySet<E> {
         return -Arrays.binarySearch(inner, 0, length, e, null) - 1;
     }
 
+    public E lowest() {
+        return get(0);
+    }
+
+    public E get(E e) {
+        var idx = -find(e) - 1;
+        if (idx < 0) return null;
+
+        return get(idx);
+    }
+
     public boolean contains(E e) {
         return find(e) < 0;
     }
