@@ -2,7 +2,7 @@ package collections.btree;
 
 import java.util.Arrays;
 
-class SortedArraySet<E> {
+class SortedArraySet<E> implements Storage<E> {
     @SuppressWarnings("unchecked")
     private final E[] inner = (E[]) new Object[BTreeSet.M];
 
@@ -16,6 +16,7 @@ class SortedArraySet<E> {
         return inner.length;
     }
 
+    @Override
     public boolean isFull() {
         return size() == capacity();
     }
@@ -24,6 +25,7 @@ class SortedArraySet<E> {
         return inner[idx];
     }
 
+    @Override
     public SortedArraySet<E> split(E e) {
         var bias = find(e);
         var other = new SortedArraySet<E>();
@@ -50,6 +52,7 @@ class SortedArraySet<E> {
         return other;
     }
 
+    @Override
     public void insert(E e) {
         var idx = find(e);
 
@@ -67,10 +70,12 @@ class SortedArraySet<E> {
         return -Arrays.binarySearch(inner, 0, length, e, null) - 1;
     }
 
+    @Override
     public E lowest() {
         return get(0);
     }
 
+    @Override
     public E get(E e) {
         var idx = -find(e) - 1;
         if (idx < 0) return null;
@@ -78,6 +83,7 @@ class SortedArraySet<E> {
         return get(idx);
     }
 
+    @Override
     public boolean contains(E e) {
         return find(e) < 0;
     }
