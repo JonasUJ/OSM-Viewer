@@ -3,12 +3,9 @@ package collections.btree;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.lang.ref.WeakReference;
-import java.net.Inet4Address;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Random;
-import java.util.random.RandomGenerator;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -110,6 +107,22 @@ public class BTreeSetTest {
     }
 
     @Test
+    public void testAddSameAtSplit() {
+        // Arrange
+        Integer I = -1;
+        btree.add(I);
+        for (int i = 0; i < BTreeSet.M - 1; i++) {
+            btree.add(i);
+        }
+
+        // Act
+        btree.add(I);
+
+        // Assert
+        assertTrue(btree.root instanceof Leaf<Integer>);
+    }
+
+    @Test
     public void testContainsPresent() {
         btree.add(0);
         assertTrue(btree.contains(0));
@@ -129,7 +142,7 @@ public class BTreeSetTest {
         // Act
         // Integers from -128 to unknown are cached and will return the same object. We bypass the cache
         // by using Integer.MIN_VALUE.
-        for (Integer i = Integer.MIN_VALUE; i < Integer.MIN_VALUE + BTreeSet.M; i++) {
+        for (Integer i = Integer.MIN_VALUE; i < Integer.MIN_VALUE + 2 * BTreeSet.M; i++) {
             btree.add(i);
             ints.add(new WeakReference<>(i));
         }

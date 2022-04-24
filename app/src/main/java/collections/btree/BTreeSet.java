@@ -20,7 +20,7 @@ public class BTreeSet<E> {
         if ((M & 1) == 1) throw new AssertionError("BTree.M must be even");
     }
 
-    private Page<E> root;
+    Page<E> root;
 
     public BTreeSet() {
         root = new Leaf<>();
