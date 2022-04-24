@@ -72,7 +72,7 @@ public class BTreeSetTest {
 
         // Assert
         for (var i : ints) {
-            assertSame(i, btree.get(i.intValue()));
+            assertEquals(i, btree.get(i.intValue()));
         }
     }
 
