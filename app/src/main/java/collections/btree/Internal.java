@@ -25,19 +25,15 @@ class Internal<E> implements Page<E> {
         if (split == null) return null;
 
         if (entries.isFull()) {
-            return split(split, idx);
+            return split(split);
         }
 
         entries.insert(split);
         return null;
     }
 
-    private Entry<E> split(Entry<E> e, int idx) {
-        var newPage = new Internal<>(entries.split(idx));
-
-        // Insert e in correct page
-        if (idx <= BTreeSet.HalfM) entries.insert(e);
-        else newPage.entries.insert(e);
+    private Entry<E> split(Entry<E> e) {
+        var newPage = new Internal<>(entries.split(e));
 
         var entry = newPage.entries.get(0);
         return new Entry<>(entry.key(), newPage);

@@ -24,14 +24,16 @@ class SortedArraySet<E> {
         return inner[idx];
     }
 
-    public SortedArraySet<E> split(int bias) {
+    public SortedArraySet<E> split(E e) {
+        var bias = find(e);
         var other = new SortedArraySet<E>();
-        final var mid = BTreeSet.HalfM; // We only split when this.isFull(), meaning the middle is static.
+        final var mid =
+                BTreeSet.HalfM; // We only split when this.isFull(), meaning the middle is static.
 
         // A bias less than mid will result in 8 being split 3-5 instead of 4-4 and vice versa.
         int offset = 0;
-        if (bias + 1 < mid) offset = 1;
-        else if (bias + 1 > mid) offset = -1;
+        if (bias < mid) offset = 1;
+        else if (bias > mid) offset = -1;
 
         // Move half to other
         other.length = mid + offset;
@@ -40,6 +42,10 @@ class SortedArraySet<E> {
             other.inner[j] = inner[i];
             inner[i] = null;
         }
+
+        // Insert e in correct set
+        if (bias < mid) insert(e);
+        else other.insert(e);
 
         return other;
     }
@@ -59,5 +65,9 @@ class SortedArraySet<E> {
 
     public int find(E e) {
         return -Arrays.binarySearch(inner, 0, length, e, null) - 1;
+    }
+
+    public boolean contains(E e) {
+        return find(e) < 0;
     }
 }

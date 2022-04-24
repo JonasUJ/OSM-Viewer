@@ -15,21 +15,16 @@ class Leaf<E> implements Page<E> {
 
     @Override
     public Entry<E> add(E e) {
-        if (entities.isFull()) {
-            var idx = entities.find(e);
-            return split(e, idx);
+        if (entities.isFull() && !entities.contains(e)) {
+                return split(e);
         }
 
         entities.insert(e);
         return null;
     }
 
-    private Entry<E> split(E e, int idx) {
-        var newRight = new Leaf<>(entities.split(idx));
-
-        // Insert e in correct leaf
-        if (idx <= entities.capacity() >> 1) entities.insert(e);
-        else newRight.entities.insert(e);
+    private Entry<E> split(E e) {
+        var newRight = new Leaf<>(entities.split(e));
 
         // Insert new leaf in linked list (if we want to implement Iterator)
         // newRight.right = right;
