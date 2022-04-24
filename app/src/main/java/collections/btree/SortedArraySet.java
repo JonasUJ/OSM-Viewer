@@ -33,13 +33,13 @@ class SortedArraySet<E> {
         if (bias + 1 < mid) offset = 1;
         else if (bias + 1 > mid) offset = -1;
 
-        // Copy half to new set
+        // Move half to other
         other.length = mid + offset;
-        System.arraycopy(inner, mid - offset, other.inner, 0, other.size());
-
-        // Remove copied half from this
         length -= other.length;
-        Arrays.fill(inner, size(), capacity(), null);
+        for (int i = mid - offset, j = 0; j < other.size(); i++, j++) {
+            other.inner[j] = inner[i];
+            inner[i] = null;
+        }
 
         return other;
     }
