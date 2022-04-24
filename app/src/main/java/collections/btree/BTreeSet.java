@@ -3,7 +3,7 @@ package collections.btree;
 import java.util.Objects;
 
 /**
- * B+ Tree
+ * B+ Tree, but only the feature we need.
  *
  * <p>See Algorithms 4th ed. chapter 6 (p. 866) for an introduction to B-trees
  *
@@ -13,7 +13,8 @@ import java.util.Objects;
 @SuppressWarnings("rawtypes")
 public class BTreeSet<E> {
     static final int M = 16;
-    static final Object sentinel = (Comparable) e -> -1;
+    static final int HalfM = M / 2;
+    private static final Object sentinel = (Comparable) e -> -1;
 
     static {
         if ((M & 1) == 1) throw new RuntimeException("BTree.M must be even");

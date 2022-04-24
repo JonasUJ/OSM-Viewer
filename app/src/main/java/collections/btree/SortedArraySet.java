@@ -26,12 +26,12 @@ class SortedArraySet<E> {
 
     public SortedArraySet<E> split(int bias) {
         var other = new SortedArraySet<E>();
-        var mid = size() >> 1;
+        final var mid = BTreeSet.HalfM; // We only split when this.isFull(), meaning the middle is static.
 
         // A bias less than mid will result in 8 being split 3-5 instead of 4-4 and vice versa.
         int offset = 0;
-        if (bias < mid) offset = 1;
-        else if (bias > mid) offset = -1;
+        if (bias + 1 < mid) offset = 1;
+        else if (bias + 1 > mid) offset = -1;
 
         // Copy half to new set
         other.length = mid + offset;

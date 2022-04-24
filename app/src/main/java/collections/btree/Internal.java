@@ -33,14 +33,10 @@ class Internal<E> implements Page<E> {
     }
 
     private Entry<E> split(Entry<E> e, int idx) {
-        // Bias low if e is inserted here and bias mid if e is inserted in newPage. We don't want to
-        // bias high because we remove an entry from newPage before returning.
-        var mid = entries.size() >> 1;
-        var bias = Math.min(idx, mid);
-        var newPage = new Internal<>(entries.split(bias));
+        var newPage = new Internal<>(entries.split(idx));
 
-        // Insert e in correct leaf
-        if (idx <= mid) entries.insert(e);
+        // Insert e in correct page
+        if (idx <= BTreeSet.HalfM) entries.insert(e);
         else newPage.entries.insert(e);
 
         var entry = newPage.entries.get(0);
