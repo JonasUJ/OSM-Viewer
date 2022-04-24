@@ -3,7 +3,7 @@ package collections.btree;
 import java.util.Objects;
 
 /**
- * B+ Tree, but only the feature we need.
+ * B+ Tree, but only the features we need.
  *
  * <p>See Algorithms 4th ed. chapter 6 (p. 866) for an introduction to B-trees
  *
@@ -17,7 +17,7 @@ public class BTreeSet<E> {
     private static final Object sentinel = (Comparable) e -> -1;
 
     static {
-        if ((M & 1) == 1) throw new RuntimeException("BTree.M must be even");
+        if ((M & 1) == 1) throw new AssertionError("BTree.M must be even");
     }
 
     private Page<E> root;
