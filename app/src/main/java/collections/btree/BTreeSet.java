@@ -22,8 +22,18 @@ public class BTreeSet<E> {
 
     Page<E> root;
 
+    /** New BTreeSet that stores its elements in memory. */
     public BTreeSet() {
-        root = new Leaf<>(new SortedArraySet<>());
+        this(new SortedArraySet<>());
+    }
+
+    /**
+     * New BTreeSet that lets the passed storage decide how the elements in the set are stored.
+     *
+     * @param storage Object that manages storage of set elements.
+     */
+    public BTreeSet(Storage<E> storage) {
+        root = new Leaf<>(storage);
     }
 
     /**
