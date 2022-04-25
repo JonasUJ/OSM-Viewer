@@ -3,8 +3,8 @@ package collections;
 import java.util.*;
 
 public class RefTable<E extends Entity> implements Iterable<E> {
-    List<E> values = new ArrayList<>();
-    boolean isSorted;
+    protected List<E> values = new ArrayList<>();
+    protected boolean isSorted;
 
     public RefTable() {}
 
