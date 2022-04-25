@@ -31,7 +31,7 @@ public class BTreeSetTest {
 
         // Assert
         for (var i : ints) {
-            assertSame(i, btree.get(i.intValue()));
+            assertSame(i, btree.get(i));
         }
     }
 
@@ -48,7 +48,7 @@ public class BTreeSetTest {
 
         // Assert
         for (var i : ints) {
-            assertSame(i, btree.get(i.intValue()));
+            assertSame(i, btree.get(i));
         }
     }
 
@@ -69,7 +69,7 @@ public class BTreeSetTest {
 
         // Assert
         for (var i : ints) {
-            assertEquals(i, btree.get(i.intValue()));
+            assertEquals(i, btree.get(i));
         }
     }
 
@@ -149,6 +149,7 @@ public class BTreeSetTest {
 
         // Overwrite all objects in the set
         for (var i : ints) {
+            // Despite what IntelliJ claims, this unboxing is anything but unnecessary.
             btree.add(i.get().intValue());
         }
 
@@ -165,5 +166,37 @@ public class BTreeSetTest {
     public void testEntrySetKeyAssertion() {
         var entry = new Entry<>(Integer.MIN_VALUE, null);
         assertThrows(AssertionError.class, () -> entry.setKey(0));
+    }
+
+    @Test
+    public void testStorageContainsDefault() {
+        Storage<Integer> mock =
+                new Storage<>() {
+                    @Override
+                    public boolean isFull() {
+                        return false;
+                    }
+
+                    @Override
+                    public Storage<Integer> split(Integer integer) {
+                        return null;
+                    }
+
+                    @Override
+                    public void insert(Integer integer) {}
+
+                    @Override
+                    public Integer lowest() {
+                        return null;
+                    }
+
+                    @Override
+                    public Integer get(Integer integer) {
+                        return integer == 0 ? 0 : null;
+                    }
+                };
+
+        assertTrue(mock.contains(0));
+        assertFalse(mock.contains(1));
     }
 }
