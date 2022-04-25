@@ -23,7 +23,7 @@ public class BTreeSet<E> {
     Page<E> root;
 
     public BTreeSet() {
-        root = new Leaf<>();
+        root = new Leaf<>(new SortedArraySet<>());
     }
 
     /**

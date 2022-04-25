@@ -1,15 +1,11 @@
 package collections.btree;
 
 class Leaf<E> implements Page<E> {
-    private final SortedArraySet<E> entities;
+    private final Storage<E> entities;
     // Leaf<E> left;
     // Leaf<E> right;
 
-    public Leaf() {
-        entities = new SortedArraySet<>();
-    }
-
-    private Leaf(SortedArraySet<E> entities) {
+    public Leaf(Storage<E> entities) {
         this.entities = entities;
     }
 
