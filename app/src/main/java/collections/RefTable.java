@@ -29,6 +29,14 @@ public class RefTable<E extends Entity> implements Iterable<E> {
         return values.size();
     }
 
+    public boolean isSorted() {
+        return isSorted;
+    }
+
+    public List<E> values() {
+        return values;
+    }
+
     @Override
     public Iterator<E> iterator() {
         return values.iterator();
