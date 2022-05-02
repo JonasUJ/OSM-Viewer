@@ -3,6 +3,15 @@
     -fx-font-family: "Times New Roman", Times, serif;
     -fx-background-color: rgb(188, 255, 235);
 }
+
+#scaleBarRectangle1 {
+    -fx-fill: rgb(255, 255, 255);
+}
+
+#scaleBarRectangle2 {
+    -fx-fill: rgb(0, 0, 0);
+}
+
 .button {
     -fx-background-radius: 10px;
     -fx-background-color: #99caf8;

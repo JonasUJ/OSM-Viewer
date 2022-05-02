@@ -4,6 +4,15 @@
     -fx-background-color: linear-gradient(to right, red, blue);
     
 }
+
+#scaleBarRectangle1 {
+    -fx-fill: linear-gradient(to right, rgb(255, 0, 212), rgb(255, 0, 0));
+}
+
+#scaleBarRectangle2 {
+    -fx-fill: linear-gradient(to right, rgb(0, 255, 13), rgb(55, 0, 255));
+}
+
 .button {
     -fx-background-radius: 10px;
     -fx-background-color: linear-gradient(to right, rgb(255, 0, 212), rgb(255, 0, 0));

@@ -1,22 +1,28 @@
 package dialog;
 
+import static util.TimeFormat.formatDuration;
+
 import features.Feature;
 import features.FeatureSet;
 import io.FileParser;
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.LocalTime;
 import java.util.EnumSet;
 import java.util.Set;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
-import javax.xml.stream.XMLStreamException;
 import osm.ReaderStats;
 
 public class CreateMapDialog extends Dialog {
@@ -27,13 +33,14 @@ public class CreateMapDialog extends Dialog {
     @FXML private VBox checkboxes;
     @FXML private GridPane statsGrid;
     @FXML private Button next;
-    @FXML private Button cancel;
     @FXML private Label nodeTotal;
     @FXML private Label nodeThroughput;
     @FXML private Label wayTotal;
     @FXML private Label wayThroughput;
     @FXML private Label relationTotal;
     @FXML private Label relationThroughput;
+    @FXML private ProgressBar progress;
+    @FXML private Label timer;
 
     private void setSet(Set<Feature> set) {
         this.set = set;
@@ -65,14 +72,27 @@ public class CreateMapDialog extends Dialog {
     }
 
     @FXML
-    private void next(ActionEvent actionEvent) {
+    private void next() {
         header.textProperty().set("Creating map...");
         checkboxes.setDisable(true);
         statsGrid.setVisible(true);
-        cancel.setDisable(true);
         next.setDisable(true);
-        next.onActionProperty().set(e -> close());
+        next.onActionProperty().set(e -> close(new CreateMapDialogResult(file)));
         next.textProperty().set("Open");
+
+        var start = LocalTime.now();
+        var timeline =
+                new Timeline(
+                        new KeyFrame(
+                                javafx.util.Duration.millis(100),
+                                e ->
+                                        timer
+                                                .textProperty()
+                                                .set(formatDuration(Duration.between(start, LocalTime.now())))));
+        timeline.setCycleCount(Animation.INDEFINITE);
+        timeline.play();
+        progress.setVisible(true);
+        timer.setVisible(true);
 
         var stats = new ReaderStats(1_000_000_000);
         nodeTotal.textProperty().bind(Bindings.concat(stats.nodeTotal));
@@ -90,25 +110,20 @@ public class CreateMapDialog extends Dialog {
                 new Thread(
                         () -> {
                             try {
-                                file = FileParser.createMapFromOsm(file, featureSet, stats);
+                                file = FileParser.createMapFromOsm(file, featureSet, progress, stats);
                                 Platform.runLater(
                                         () -> {
                                             next.setDisable(false);
-                                            cancel.setDisable(false);
                                             header.textProperty().set(file.getName() + " created");
+                                            progress.setProgress(100);
+                                            timeline.stop();
                                         });
-                            } catch (IOException | XMLStreamException e) {
+                            } catch (Exception e) {
                                 throw new RuntimeException(e);
                             }
                         });
 
         thread.setDaemon(true);
         thread.start();
-    }
-
-    @FXML
-    private void cancel(ActionEvent actionEvent) {
-        file = null;
-        close();
     }
 }

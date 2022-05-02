@@ -1,9 +1,12 @@
 package view;
 
+import Search.Address;
 import Search.SearchTextField;
 import canvas.MapCanvas;
 import canvas.Renderer;
+import com.jogamp.newt.event.MouseEvent;
 import dialog.CreateMapDialog;
+import dialog.LoadingDialog;
 import drawing.Category;
 import drawing.Drawable;
 import drawing.Drawing;
@@ -13,10 +16,14 @@ import geometry.Vector2D;
 import io.FileParser;
 import java.io.File;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicReference;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Side;
@@ -25,11 +32,13 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.Menu;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
+import navigation.EdgeRole;
 import pointsOfInterest.PointOfInterest;
 import pointsOfInterest.PointsOfInterestHBox;
 import pointsOfInterest.PointsOfInterestVBox;
@@ -38,6 +47,8 @@ public class Controller {
     private Model model;
     private final Timer queryPointTimer = new Timer();
     private TimerTask queryPointTimerTask;
+    private Point fromPoint, toPoint;
+    private Drawing routeDrawing;
     private boolean pointOfInterestMode = false;
     private Tooltip addPointOfInterestText;
     private Drawing lastDrawnAddress;
@@ -56,9 +67,9 @@ public class Controller {
 
     @FXML private SearchTextField searchTextField;
 
-    @FXML private TextField fromRouteTextField;
+    @FXML private SearchTextField fromRouteTextField;
 
-    @FXML private TextField toRouteTextField;
+    @FXML private SearchTextField toRouteTextField;
 
     @FXML private Button routeButton;
 
@@ -86,19 +97,70 @@ public class Controller {
 
     @FXML private VBox rightVBox;
 
+    @FXML private VBox middleVBox;
+
     @FXML private Label nearestRoadLabel;
 
     @FXML private CheckMenuItem nearestRoadDelayItem;
 
     @FXML private PointsOfInterestVBox pointsOfInterestVBox;
 
+    @FXML private Label scaleBarText;
+
+    @FXML private Rectangle scaleBarRectangle;
+
+    @FXML private Label zoomLevelText;
+
+    @FXML private Label fps;
+
     public void init(Model model) {
         setModel(model);
 
         setStyleSheets("style.css");
 
+        model
+                .getRoutePoints()
+                .addListener(
+                        (ListChangeListener<? super Point>)
+                                listener -> {
+                                    while (listener.next()) {}
+
+                                    if (!listener.wasAdded()) {
+                                        return;
+                                    }
+
+                                    var renderer = canvas.getRenderer();
+                                    if (routeDrawing != null) renderer.clear(routeDrawing);
+
+                                    var vectors = listener.getAddedSubList().stream().map(Vector2D::create).toList();
+                                    routeDrawing = Drawing.create(vectors, Drawable.ROUTE);
+
+                                    renderer.draw(routeDrawing);
+                                });
+
+        fps.textProperty().bind(canvas.fpsProperty.asString("FPS: %.1f"));
+
         canvas.mapMouseClickedProperty.set(
                 e -> {
+                    if (e.getButton() == MouseEvent.BUTTON2) {
+                        var point = new Point(e.getX(), e.getY());
+                        point = canvas.canvasToMap(point);
+                        point = Point.mapToGeo(point);
+                        point = model.getNearestPoint(point);
+
+                        if (fromPoint == null) {
+                            fromPoint = point;
+                        } else if (toPoint == null) {
+                            toPoint = point;
+                            model.calculateBestRoute(fromPoint, toPoint);
+                        } else {
+                            fromPoint = point;
+                            toPoint = null;
+                        }
+
+                        return;
+                    }
+
                     if (pointOfInterestMode) {
                         Point point = canvas.canvasToMap(new Point((float) e.getX(), (float) e.getY()));
                         var cm = new ContextMenu();
@@ -118,7 +180,7 @@ public class Controller {
                                                     point.x(),
                                                     point.y(),
                                                     tf.getText(),
-                                                    Drawing.create(new Vector2D(point), Drawable.POI)));
+                                                    Drawing.create(Vector2D.create(point), Drawable.POI)));
                                     cm.hide();
                                 });
 
@@ -133,6 +195,7 @@ public class Controller {
                             () -> {
                                 var mousePoint = new Point(e.getX(), e.getY());
                                 var queryPoint = canvas.canvasToMap(mousePoint);
+                                queryPoint = Point.mapToGeo(queryPoint);
                                 if (this.model.supports(Feature.NEAREST_NEIGHBOR)) {
                                     this.model.setQueryPoint(queryPoint);
                                 }
@@ -164,7 +227,12 @@ public class Controller {
                                 e.getY() + screenBounds.getMinY() - 30);
                     }
                 });
-
+        canvas.mapMouseWheelProperty.set(
+                e -> {
+                    setZoomAndScale();
+                });
+        canvas.setZoomHandler(model.bounds);
+        setZoomAndScale();
         // FIXME: yuck
         categories
                 .getChildren()
@@ -195,7 +263,7 @@ public class Controller {
     }
 
     private void setModel(Model model) {
-        if (this.model != null) this.model.dispose();
+        disableAll();
 
         this.model = model;
 
@@ -205,17 +273,39 @@ public class Controller {
 
             pointsOfInterestVBox.init(model.getPointsOfInterest());
             rightVBox.setDisable(false);
-        } else {
-            canvas.dispose();
-            canvas.setVisible(false);
-            rightVBox.setDisable(true);
         }
 
         if (model.supports(Feature.ADDRESS_SEARCH)) {
-            searchTextField.init(model.getAddresses());
+            searchTextField.init(model);
             searchTextField.setDisable(false);
-        } else {
-            searchTextField.setDisable(true);
+            model
+                    .getObservableSearchSuggestions()
+                    .addListener(
+                            (ListChangeListener<Address>)
+                                    c -> {
+                                        searchTextField.showMenuItems((ObservableList<Address>) c.getList());
+                                    });
+        }
+
+        if (model.supports(Feature.PATHFINDING)) {
+            toRouteTextField.init(model);
+            fromRouteTextField.init(model);
+            toRouteTextField.setDisable(false);
+            fromRouteTextField.setDisable(false);
+            model
+                    .getObservableToSuggestions()
+                    .addListener(
+                            (ListChangeListener<Address>)
+                                    c -> {
+                                        toRouteTextField.showMenuItems((ObservableList<Address>) c.getList());
+                                    });
+            model
+                    .getObservableFromSuggestions()
+                    .addListener(
+                            (ListChangeListener<Address>)
+                                    c -> {
+                                        fromRouteTextField.showMenuItems((ObservableList<Address>) c.getList());
+                                    });
         }
 
         if (model.supports(Feature.NEAREST_NEIGHBOR)) {
@@ -223,9 +313,22 @@ public class Controller {
                     .textProperty()
                     .bind(Bindings.concat("Nearest road: ", model.nearestRoadProperty()));
             nearestRoadLabel.setVisible(true);
-        } else {
-            nearestRoadLabel.setVisible(false);
         }
+    }
+
+    public void disableAll() {
+        if (model != null) model.dispose();
+
+        canvas.dispose();
+        canvas.setVisible(false);
+        rightVBox.setDisable(true);
+
+        searchTextField.setDisable(true);
+
+        toRouteTextField.setDisable(true);
+        fromRouteTextField.setDisable(true);
+
+        nearestRoadLabel.setVisible(false);
     }
 
     public void dispose() {
@@ -235,23 +338,27 @@ public class Controller {
     }
 
     @FXML
-    public void handleKeyTyped() {
-        searchTextField.handleSearchChange();
-    }
-
-    @FXML
     public void handleSearchClick() {
-        var address = searchTextField.handleSearch();
-        if (address == null) return; // TODO: handle exception and show message?
+        var result = searchTextField.handleSearch();
+        if (result == null) return; // TODO: handle exception and show message?
+        if (result.size() > 1) {
+            // TODO: popup message
+        } else if (result.size() < 1) {
+
+        }
+        var address = result.get(0);
+
         Point point =
                 Point.geoToMap(new Point((float) address.node().lon(), (float) address.node().lat()));
         zoomOn(point);
-        var drawing = Drawing.create(new Vector2D(point), Drawable.ADDRESS);
+        var drawing = Drawing.create(Vector2D.create(point), Drawable.ADDRESS);
         canvas.getRenderer().draw(drawing);
         if (lastDrawnAddress != null) {
             canvas.getRenderer().clear(lastDrawnAddress);
         }
         lastDrawnAddress = drawing;
+
+        searchTextField.clear(); // TODO: find ud af om den skal bruges
     }
 
     @FXML
@@ -261,8 +368,14 @@ public class Controller {
 
     @FXML
     public void handleRouteClick() {
-        fromRouteTextField.clear();
-        toRouteTextField.clear();
+
+        if (fromRouteTextField.handleSearch() == null || toRouteTextField.handleSearch() == null) {
+            return;
+        }
+        routeBetweenAddresses(
+                fromRouteTextField.handleSearch().get(0),
+                toRouteTextField.handleSearch().get(0),
+                EdgeRole.CAR);
     }
 
     @FXML
@@ -294,6 +407,8 @@ public class Controller {
         leftVBox.getStylesheets().add(getClass().getResource(stylesheet).toExternalForm());
         rightVBox.getStylesheets().clear();
         rightVBox.getStylesheets().add(getClass().getResource(stylesheet).toExternalForm());
+        middleVBox.getStylesheets().clear();
+        middleVBox.getStylesheets().add(getClass().getResource(stylesheet).toExternalForm());
     }
 
     public void center(Point point) {
@@ -344,7 +459,7 @@ public class Controller {
         pointOfInterestMode = true;
     }
 
-    public void openMap(ActionEvent actionEvent) throws Exception {
+    public void openMap() throws Exception {
         var diag = new FileChooser();
         diag.setTitle("Open map file");
         diag.getExtensionFilters()
@@ -356,7 +471,7 @@ public class Controller {
         loadFile(file);
     }
 
-    public void createMap(ActionEvent actionEvent) throws Exception {
+    public void createMap() throws Exception {
         var diag = new FileChooser();
         diag.setTitle("Open OSM data file");
         // *.zip is here because *.osm.zip doesn't work on Linux
@@ -367,15 +482,91 @@ public class Controller {
         var file = diag.showOpenDialog(scene.getWindow());
         if (file == null) return;
 
-        file = CreateMapDialog.showDialog(file);
-        if (file == null) return;
+        disableAll();
 
-        loadFile(file);
+        file = CreateMapDialog.showDialog(file);
+        if (file != null) {
+            try {
+                loadFile(file);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     private void loadFile(File file) throws Exception {
-        try (var res = FileParser.readMap(file)) {
-            setModel(new Model(res));
+        AtomicReference<Model> modelRef = new AtomicReference<>();
+        LoadingDialog.showDialog(
+                "Loading " + file.getName(),
+                bar -> {
+                    try (var res = FileParser.readMap(file)) {
+                        modelRef.set(new Model(res, bar));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+
+        var model = modelRef.get();
+        if (model != null) {
+            setModel(model);
+            center(Point.geoToMap(model.bounds.center()));
         }
+    }
+
+    @FXML
+    void handleZoomOutButton() {
+        canvas.zoomChange(false);
+        setZoomAndScale();
+    }
+
+    @FXML
+    void handleZoomInButton() {
+        canvas.zoomChange(true);
+        setZoomAndScale();
+    }
+
+    @FXML
+    public void handleFromKeyTyped(KeyEvent event) {
+        var result = handleKeyTyped(event);
+        if (result == null) return;
+        model.setFromSuggestions(result);
+    }
+
+    @FXML
+    public void handleToKeyTyped(KeyEvent event) {
+        var result = handleKeyTyped(event);
+        if (result == null) return;
+        model.setToSuggestions(result);
+    }
+
+    @FXML
+    public void handleSearchKeyTyped(KeyEvent event) {
+        var result = handleKeyTyped(event);
+        if (result == null) return;
+        model.setSearchSuggestions(result);
+    }
+
+    public List<Address> handleKeyTyped(KeyEvent event) {
+        var textField = (SearchTextField) event.getSource();
+        var searchedAddress = textField.parseAddress();
+        if (searchedAddress == null) return null;
+        textField.setCurrentSearch(searchedAddress);
+
+        return model.getAddresses().possibleAddresses(searchedAddress, 5);
+    }
+
+    private void routeBetweenAddresses(Address addressFrom, Address addressTo, EdgeRole mode) {
+        Point from = new Point((float) addressFrom.node().lon(), (float) addressFrom.node().lat());
+        Point to = new Point((float) addressTo.node().lon(), (float) addressTo.node().lat());
+
+        Point dijkstraFrom = model.getNearestPoint(from);
+        Point dijkstraTo = model.getNearestPoint(to);
+
+        model.calculateBestRoute(dijkstraFrom, dijkstraTo);
+    }
+
+    private void setZoomAndScale() {
+        zoomLevelText.setText(canvas.updateZoom());
+        scaleBarText.setText(canvas.updateScalebar());
     }
 }

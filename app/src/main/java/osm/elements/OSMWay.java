@@ -4,16 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class OSMWay extends OSMElement {
-    private final SlimOSMWay slim;
-    private final List<OSMTag> tags;
+    private final List<OSMTag> tags = new ArrayList<>();
+    private SlimOSMWay slim;
 
-    public OSMWay(long id) {
-        this(id, new SlimOSMNode[0], new ArrayList<>());
-    }
-
-    public OSMWay(long id, SlimOSMNode[] nodes, List<OSMTag> tags) {
-        this.slim = new SlimOSMWay(id, nodes);
-        this.tags = tags;
+    public void init(long id) {
+        this.slim = new SlimOSMWay(id, null);
+        tags.clear();
     }
 
     @Override

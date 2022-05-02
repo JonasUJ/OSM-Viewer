@@ -6,7 +6,6 @@ import drawing.Drawing;
 import geometry.Point;
 import geometry.Rect;
 import geometry.Vector2D;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -270,7 +269,7 @@ public class TwoDTree<E> implements SpatialTree<E>, Serializable {
             return;
         }
 
-        drawing.draw(Drawing.create(new Vector2D(node.x(), node.y()), Drawable.POINT));
+        drawing.draw(Drawing.create(Vector2D.create(node.x(), node.y()), Drawable.POINT));
 
         var x1 = node.rect.left();
         var x2 = node.rect.right();
@@ -288,8 +287,8 @@ public class TwoDTree<E> implements SpatialTree<E>, Serializable {
             drawable = Drawable.PARTITION_VERTICAL;
         }
 
-        var point1 = new Vector2D(x1, y1);
-        var point2 = new Vector2D(x2, y2);
+        var point1 = Vector2D.create(x1, y1);
+        var point2 = Vector2D.create(x2, y2);
         drawing.draw(Drawing.create(List.of(point1, point2), drawable));
 
         addToDrawing(node.left, level + 1, drawing);

@@ -1,6 +1,8 @@
 package collections.enumflags;
 
-public class EnumFlags<T extends Enum<T>> {
+import java.io.Serializable;
+
+public class EnumFlags<T extends Enum<T>> implements Serializable {
     private int flags;
 
     public EnumFlags() {

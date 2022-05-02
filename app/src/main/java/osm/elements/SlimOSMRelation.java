@@ -5,11 +5,11 @@ import java.util.List;
 
 public final class SlimOSMRelation extends Entity {
     private final long id;
-    private final List<OSMMemberWay> members;
+    private final List<SlimOSMWay> ways;
 
-    public SlimOSMRelation(long id, List<OSMMemberWay> members) {
+    public SlimOSMRelation(long id, List<SlimOSMWay> ways) {
         this.id = id;
-        this.members = members;
+        this.ways = ways;
     }
 
     @Override
@@ -17,7 +17,7 @@ public final class SlimOSMRelation extends Entity {
         return id;
     }
 
-    public List<OSMMemberWay> members() {
-        return members;
+    public List<SlimOSMWay> ways() {
+        return ways;
     }
 }

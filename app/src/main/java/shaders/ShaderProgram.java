@@ -33,8 +33,8 @@ public class ShaderProgram {
         }
 
         try {
-            String vertexShaderCode = ShaderUtils.loadResource(vertexShader.getPath());
-            String fragmentShaderCode = ShaderUtils.loadResource(fragmentShader.getPath());
+            String vertexShaderCode = ShaderUtils.loadResource(vertexShader.getName());
+            String fragmentShaderCode = ShaderUtils.loadResource(fragmentShader.getName());
 
             programId = gl.glCreateProgram();
             vertexShaderId =

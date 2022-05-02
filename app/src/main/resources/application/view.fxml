@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 
-<?import javafx.geometry.Insets?>
+<?import canvas.MapCanvas?>
+<?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.Scene?>
+<?import javafx.scene.shape.Rectangle?>
 <?import pointsOfInterest.PointsOfInterestVBox?>
 <?import Search.SearchTextField?>
-<?import canvas.MapCanvas?>
 <Scene xmlns="http://javafx.com/javafx"
        xmlns:fx="http://javafx.com/fxml"
        fx:controller="view.Controller"
@@ -21,15 +22,17 @@
                 </padding>
                 <GridPane alignment="center" hgap="10" vgap="10">
                     <SearchTextField fx:id="searchTextField" promptText="Search an address" GridPane.columnIndex="0"
-                                     GridPane.rowIndex="0" onAction="#handleSearchClick" onKeyTyped="#handleKeyTyped"
+                                     GridPane.rowIndex="0" onAction="#handleSearchClick"
+                                     onKeyTyped="#handleSearchKeyTyped"
                                      onMouseClicked="#handleInFocus"/>
                     <HBox spacing="10" alignment="bottom_right" GridPane.columnIndex="0" GridPane.rowIndex="1">
                         <Button fx:id="searchButton" id="allButtons" text="Search" onAction="#handleSearchClick">
                         </Button>
                     </HBox>
-                    <TextField fx:id="fromRouteTextField" promptText="From" GridPane.columnIndex="0"
-                               GridPane.rowIndex="2"/>
-                    <TextField fx:id="toRouteTextField" promptText="To" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                    <SearchTextField fx:id="fromRouteTextField" promptText="From" GridPane.columnIndex="0"
+                                     GridPane.rowIndex="2" onKeyTyped="#handleFromKeyTyped"/>
+                    <SearchTextField fx:id="toRouteTextField" promptText="To" GridPane.columnIndex="0"
+                                     GridPane.rowIndex="3" onKeyTyped="#handleToKeyTyped"/>
                     <HBox spacing="10" alignment="bottom_right" GridPane.columnIndex="0" GridPane.rowIndex="4">
                         <Button fx:id="routeButton" id="allButtons" text="Find route" onAction="#handleRouteClick"/>
                     </HBox>
@@ -58,7 +61,8 @@
                     <RadioButton fx:id="radioButtonColorBlind" text="Colorblind mode" GridPane.columnIndex="0"
                                  GridPane.rowIndex="6" toggleGroup="$groupMode" onAction="#handleColorblind"/>
                     <RadioButton fx:id="radioButtonDefaultMode" text="Default mode" GridPane.columnIndex="0"
-                                 GridPane.rowIndex="7" toggleGroup="$groupMode" onAction="#handleDefaultMode" selected="true"/>
+                                 GridPane.rowIndex="7" toggleGroup="$groupMode" onAction="#handleDefaultMode"
+                                 selected="true"/>
                     <RadioButton fx:id="radioButtonPartyMode" text="Party mode" GridPane.columnIndex="0"
                                  GridPane.rowIndex="8" toggleGroup="$groupMode" onAction="#handlePartyMode"/>
                     <HBox fx:id="pointsOfInterestHeader" GridPane.columnIndex="0" GridPane.rowIndex="9">
@@ -66,9 +70,7 @@
                         <Button text="+" fx:id="addPointOfInterest" onAction="#enterPointOfInterestMode"/>
 
                     </HBox>
-
                     <PointsOfInterestVBox id="allVBox" fx:id="pointsOfInterestVBox" GridPane.rowIndex="10"/>
-
                 </GridPane>
             </VBox>
         </right>
@@ -81,23 +83,54 @@
             </MenuBar>
         </top>
         <center>
-            <MapCanvas fx:id="canvas" prefWidth="1280" prefHeight="720"/>
+            <VBox id="allVBox" fx:id="middleVBox">
+                <MapCanvas fx:id="canvas" prefWidth="1280" prefHeight="720"/>
+                <HBox alignment="center" fx:id="middleHBox">
+                    <padding>
+                        <Insets left="20" right="10"/>
+                    </padding>
+                    <VBox alignment="top_center">
+                        <HBox>
+                            <Rectangle id="scaleBarRectangle1" fx:id="scaleBarRectangle1" height="10.0" width="25"/>
+                            <Rectangle id="scaleBarRectangle2" fx:id="scaleBarRectangle2" height="10.0" width="25"/>
+                            <Rectangle id="scaleBarRectangle1" fx:id="scaleBarRectangle3" height="10.0" width="25"/>
+                            <Rectangle id="scaleBarRectangle2" fx:id="scaleBarRectangle4" height="10.0" width="25"/>
+                        </HBox>
+                        <Label id="rectangleLabel" fx:id="scaleBarText" text="1 km"/>
+                    </VBox>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <HBox alignment="center_right" spacing="5">
+                        <padding>
+                            <Insets top="20" bottom="20" left="10" right="10"/>
+                        </padding>
+
+                        <Button fx:id="zoomDecreaseButton" text="-" onAction="#handleZoomOutButton"/>
+                        <Label fx:id="zoomLevelText" alignment="center"/>
+                        <Button fx:id="zoomIncreaseButton" text="+" onAction="#handleZoomInButton"/>
+                    </HBox>
+                </HBox>
+            </VBox>
         </center>
         <bottom>
-            <HBox>
+            <BorderPane>
                 <padding>
                     <Insets topRightBottomLeft="4"/>
                 </padding>
-                <Label id="nearestRoadLabel" fx:id="nearestRoadLabel">
-                    <contextMenu>
-                        <ContextMenu>
-                            <items>
-                                <CheckMenuItem fx:id="nearestRoadDelayItem" text="Enable delay" selected="true"/>
-                            </items>
-                        </ContextMenu>
-                    </contextMenu>
-                </Label>
-            </HBox>
+                <left>
+                    <Label id="nearestRoadLabel" fx:id="nearestRoadLabel">
+                        <contextMenu>
+                            <ContextMenu>
+                                <items>
+                                    <CheckMenuItem fx:id="nearestRoadDelayItem" text="Enable delay" selected="true"/>
+                                </items>
+                            </ContextMenu>
+                        </contextMenu>
+                    </Label>
+                </left>
+                <right>
+                    <Label fx:id="fps"/>
+                </right>
+            </BorderPane>
         </bottom>
     </BorderPane>
 </Scene>

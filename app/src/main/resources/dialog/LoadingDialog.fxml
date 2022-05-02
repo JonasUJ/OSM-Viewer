@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1" fx:controller="dialog.LoadingDialog">
+    <center>
+        <VBox alignment="CENTER">
+            <Label fx:id="header" text="Loading">
+            <VBox.margin>
+               <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+            </VBox.margin>
+            <font>
+               <Font size="18.0" />
+            </font></Label>
+            <ProgressBar fx:id="progress" minWidth="200.0" progress="0" />
+            <Label fx:id="timer" text="timer" />
+            <Button fx:id="closeBtn" disable="true" style="-fx-background-color: #3498DB" onAction="#finish" text="Finish">
+            <VBox.margin>
+               <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+            </VBox.margin></Button>
+         <BorderPane.margin>
+            <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+         </BorderPane.margin>
+        </VBox>
+    </center>
+</BorderPane>

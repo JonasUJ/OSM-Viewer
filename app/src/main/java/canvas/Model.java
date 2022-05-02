@@ -30,6 +30,7 @@ public class Model {
                         .createDummyAutoDrawable(null, true, caps, null);
         sharedDrawable.display();
 
+
         loadPolygons(reader);
     }
 

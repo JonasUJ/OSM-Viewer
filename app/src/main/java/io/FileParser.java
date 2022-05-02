@@ -7,8 +7,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.zip.ZipFile;
+import javafx.application.Platform;
+import javafx.scene.control.ProgressBar;
 import javafx.util.Pair;
-import javax.xml.stream.XMLStreamException;
 import org.anarres.parallelgzip.ParallelGZIPInputStream;
 import org.anarres.parallelgzip.ParallelGZIPOutputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
@@ -24,31 +25,42 @@ public class FileParser implements IOConstants {
     private static final String FEATURES = "FEATURES";
     private static final String BOUNDS = "BOUNDS";
 
-    public static File createMapFromOsm(File infile, FeatureSet features, OSMObserver... observers)
-            throws IOException, XMLStreamException {
-        var reader = new OSMReader();
+    public static File createMapFromOsm(
+            File infile, FeatureSet features, ProgressBar bar, OSMObserver... observers)
+            throws Exception {
         var writers = new ArrayList<Pair<String, Writer>>();
 
-        writers.add(new Pair<>(FEATURES, new ObjectWriter<>(features)));
-        writers.add(new Pair<>(BOUNDS, new ObjectWriter<>(new OSMBounds())));
+        { // `reader` gets its own scope so that it'll actually get GC'd at the end.
+            // `reader = null` on its own just got optimized out.
 
-        for (var feature : features) {
-            writers.add(new Pair<>(feature.name(), feature.createWriter()));
+            var reader = new OSMReader();
+
+            writers.add(new Pair<>(FEATURES, new ObjectWriter<>(features)));
+            writers.add(new Pair<>(BOUNDS, new ObjectWriter<>(new OSMBounds())));
+
+            for (var feature : features) {
+                writers.add(new Pair<>(feature.name(), feature.createWriter()));
+            }
+
+            for (var writer : writers) {
+                reader.addObservers(writer.getValue());
+            }
+
+            reader.addObservers(observers);
+
+            reader.parse(getInputStream(infile, bar));
         }
 
-        for (var writer : writers) {
-            reader.addObservers(writer.getValue());
-        }
-
-        reader.addObservers(observers);
-
-        reader.parse(getInputStream(infile));
+        System.gc();
 
         var outfile =
                 new File(
                         infile.getPath().substring(0, infile.getPath().length() - infile.getName().length())
                                 + infile.getName().split("\\.")[0]
                                 + EXT);
+
+        if (bar != null) Platform.runLater(() -> bar.setProgress(-1));
+
         createMapFromWriters(outfile, writers);
 
         System.gc();
@@ -102,13 +114,24 @@ public class FileParser implements IOConstants {
                                         .orElseThrow())));
     }
 
-    private static InputStream getInputStream(File file) throws IOException {
+    private static InputStream getInputStream(File file, ProgressBar bar) throws IOException {
+        long size;
+        InputStream stream;
+
         if (file.getName().endsWith(".zip")) {
             var zipFile = new ZipFile(file);
             var entry = zipFile.entries().nextElement();
-            return new BufferedInputStream(zipFile.getInputStream(entry), BUFFER_SIZE);
+            size = entry.getSize();
+            stream = zipFile.getInputStream(entry);
+        } else {
+            stream = new FileInputStream(file);
+            size = file.length();
         }
 
-        return new BufferedInputStream(new FileInputStream(file), BUFFER_SIZE);
+        stream = new BufferedInputStream(stream, BUFFER_SIZE);
+
+        if (bar != null) stream = new ProgressBarInputStream(stream, bar, size);
+
+        return stream;
     }
 }

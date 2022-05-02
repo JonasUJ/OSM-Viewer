@@ -1,55 +1,94 @@
 package osm;
 
 import geometry.Rect;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
+import jdk.incubator.vector.*;
 import osm.elements.*;
 import osm.tables.NodeTable;
-import osm.tables.RelationTable;
 import osm.tables.WayTable;
+import util.ThrowingRunnable;
 
 public class OSMReader {
     enum Parseable {
-        node,
-        way,
-        relation,
-        tag,
-        nd,
-        member
+        NODE('n', true),
+        WAY('w', true),
+        RELATION('r', true),
+        TAG('t', false),
+        ND('n', false),
+        MEMBER('m', false);
+
+        final byte b;
+        final boolean isContainer;
+
+        Parseable(char c, boolean isContainer) {
+            b = (byte) c;
+            this.isContainer = isContainer;
+        }
     }
 
+    private static final VectorSpecies<Byte> SPECIES = ByteVector.SPECIES_PREFERRED;
+    private static final int SPECIES_LENGTH = SPECIES.length();
+
+    private static final VectorMask<Byte>[] LSHIFT_MASKS =
+            (VectorMask<Byte>[]) new VectorMask[SPECIES_LENGTH];
+    private static final double[] POWERS_OF_TEN = new double[24];
+
+    private static final ByteVector TAG = ByteVector.broadcast(SPECIES, (byte) '<');
+    private static final ByteVector QUOTE = ByteVector.broadcast(SPECIES, (byte) '"');
+    private static final ByteVector L = ByteVector.broadcast(SPECIES, (byte) 'l');
+    private static final ByteVector DOT = ByteVector.broadcast(SPECIES, (byte) '.');
+
+    static {
+        for (int i = 0; i < SPECIES_LENGTH; i++) {
+            LSHIFT_MASKS[i] = VectorMask.fromLong(SPECIES, 0xFFFF_FFFF_FFFF_FFFFL << i);
+        }
+
+        for (int i = 0; i < POWERS_OF_TEN.length; i++) {
+            POWERS_OF_TEN[i] = Math.pow(10, i);
+        }
+    }
+
+    private InputStream stream;
+    private final byte[] buf = new byte[64 * 4096]; // must be multiple of 64
+    private int cur = 0;
+
     private final List<OSMObserver> observers = new ArrayList<>();
-    private XMLStreamReader reader;
-    private int event;
 
     private final NodeTable nodes = new NodeTable();
     private final WayTable ways = new WayTable();
-    private final RelationTable relations = new RelationTable();
 
+    private final OSMNode node = new OSMNode();
+    private final OSMWay way = new OSMWay();
+    private final OSMRelation relation = new OSMRelation();
     private OSMElement current;
     private final List<SlimOSMNode> wayNdList = new ArrayList<>();
-    // IntelliJ's static analysis says this can be made local. Don't be fooled - it can't.
-    private boolean advanceAfter;
+    private boolean atTag;
 
     public OSMReader() {
-        addObservers(nodes, ways, relations);
+        addObservers(nodes, ways);
     }
 
-    public void parse(InputStream stream) throws XMLStreamException {
-        reader = XMLInputFactory.newInstance().createXMLStreamReader(stream);
-        event = reader.next();
+    public void parse(InputStream stream) throws Exception {
+        this.stream =
+                new SequenceInputStream(
+                        stream, new ByteArrayInputStream("<end>".getBytes(StandardCharsets.UTF_8)));
+        stream.read(buf);
 
         parseBounds();
 
-        parseAll(Parseable.node, this::parseNode);
-        parseAll(Parseable.way, this::parseWay);
-        parseAll(Parseable.relation, this::parseRelation);
+        current = node;
+        parseAll(Parseable.NODE, this::parseNode);
+        current = way;
+        parseAll(Parseable.WAY, this::parseWay);
+        current = relation;
+        parseAll(Parseable.RELATION, this::parseRelation);
 
         for (var observer : observers) {
             observer.onFinish();
@@ -60,78 +99,162 @@ public class OSMReader {
         this.observers.addAll(Arrays.asList(observers));
     }
 
-    private void advance() {
-        try {
-            event = reader.next();
-        } catch (XMLStreamException e) {
-            // A method that throws cannot be coerced to a Runnable.
-            // Since we want to call advance from a Runnable, we must wrap exceptions.
-            // TODO: Wrap in custom exception that can be caught and shown to the user, informing
-            // them of
-            // malformed data
-            throw new RuntimeException(e);
+    private void refill() throws IOException {
+        int half = buf.length >> 1;
+
+        if (cur >= half) {
+            System.arraycopy(buf, half, buf, 0, half);
+            stream.read(buf, half, half);
+            cur -= half;
         }
     }
 
+    private byte read() {
+        advance();
+        return at();
+    }
+
+    private byte at() {
+        return buf[cur];
+    }
+
+    private void advance() {
+        cur++;
+    }
+
+    private void advance(int amount) {
+        cur += amount;
+    }
+
+    private void advance(ByteVector until) {
+        int next = ByteVector.fromArray(SPECIES, buf, cur).eq(until).firstTrue();
+        cur += next;
+
+        // The happy path would be avoiding this condition.
+        if (next == SPECIES_LENGTH) {
+            advanceLoop(until);
+        }
+    }
+
+    private void advanceLoop(ByteVector until) {
+        while (true) {
+            int next = ByteVector.fromArray(SPECIES, buf, cur).eq(until).firstTrue();
+            cur += next;
+
+            if (next != SPECIES_LENGTH) {
+                return;
+            }
+        }
+    }
+
+    private void advanceTag() {
+        advance(TAG);
+        advance();
+        atTag = true;
+    }
+
     private void parseBounds() {
-        while (event != XMLStreamConstants.START_ELEMENT || !reader.getLocalName().equals("bounds")) {
+        do {
+            advanceTag();
+        } while (at() != 'b');
+
+        atTag = false;
+
+        double minlat;
+        double minlon;
+        double maxlat;
+        double maxlon;
+
+        advance(L);
+        var latFirst = read() == 'a';
+        advance(QUOTE);
+        advance();
+        if (latFirst) {
+            minlat = getDouble();
             advance();
+            advance(QUOTE);
+            advance();
+            minlon = getDouble();
+        } else {
+            minlon = getDouble();
+            advance();
+            advance(QUOTE);
+            advance();
+            minlat = getDouble();
         }
 
-        var bounds =
-                new Rect(
-                        (float) getDouble("minlat"),
-                        (float) getDouble("minlon"),
-                        (float) getDouble("maxlat"),
-                        (float) getDouble("maxlon"));
+        advance(L);
+        latFirst = read() == 'a';
+        advance(QUOTE);
         advance();
+        if (latFirst) {
+            maxlat = getDouble();
+            advance();
+            advance(QUOTE);
+            advance();
+            maxlon = getDouble();
+        } else {
+            maxlon = getDouble();
+            advance();
+            advance(QUOTE);
+            advance();
+            maxlat = getDouble();
+        }
+
+        var bounds = new Rect((float) minlat, (float) minlon, (float) maxlat, (float) maxlon);
 
         for (var observer : observers) {
             observer.onBounds(bounds);
         }
     }
 
-    private void parseAll(Parseable parseable, Runnable runnable) {
+    private void parseAll(Parseable parseable, ThrowingRunnable runnable) throws Exception {
         while (true) {
-            advanceAfter = true;
-            while (event != XMLStreamConstants.START_ELEMENT) {
-                if (event == XMLStreamConstants.END_DOCUMENT) return;
-                advance();
-            }
+            refill();
 
-            if (!reader.getLocalName().equals(parseable.name())) {
-                advanceAfter = false;
-                return;
-            }
+            if (!atTag) advanceTag();
 
-            runnable.run();
+            if (at() != parseable.b) {
+                if (!parseable.isContainer || at() != '/') {
+                    return;
+                }
 
-            if (advanceAfter) {
-                if (event == XMLStreamConstants.END_DOCUMENT) return;
-                advance();
+                advanceTag();
+            } else {
+                atTag = false;
+                runnable.run();
             }
         }
     }
 
-    private void parseNode() {
-        var node = new OSMNode(getLong("id"), getDouble("lon"), getDouble("lat"));
-        current = node;
+    private void parseNode() throws Exception {
+        advance(9); // advance(QUOTE);
+        var id = getLong();
 
-        advance();
-        parseAll(Parseable.tag, this::parseTag);
+        advance(L);
+        advance(5); // advance(QUOTE);
+        var lat = getDouble();
+        advance(L);
+        advance(5); // advance(QUOTE);
+        var lon = getDouble();
+
+        node.init(id, lon, lat);
+
+        parseAll(Parseable.TAG, this::parseTag);
 
         for (var observer : observers) {
             observer.onNode(node);
         }
     }
 
-    private void parseWay() {
-        var way = new OSMWay(getLong("id"));
-        current = way;
+    private void parseWay() throws Exception {
+        advance(8); // advance(QUOTE);
+        var id = getLong();
 
-        advance();
-        parseAll(Parseable.nd, this::parseNd);
-        parseAll(Parseable.tag, this::parseTag);
+        way.init(id);
+
+        parseAll(Parseable.ND, this::parseNd);
+        parseAll(Parseable.TAG, this::parseTag);
 
         way.setNodes(wayNdList.toArray(new SlimOSMNode[0]));
         wayNdList.clear();
@@ -141,13 +264,14 @@ public class OSMReader {
         }
     }
 
-    private void parseRelation() {
-        var relation = new OSMRelation(getLong("id"));
-        current = relation;
+    private void parseRelation() throws Exception {
+        advance(13); // advance(QUOTE);
+        var id = getLong();
 
-        advance();
-        parseAll(Parseable.member, this::parseMember);
-        parseAll(Parseable.tag, this::parseTag);
+        relation.init(id);
+
+        parseAll(Parseable.MEMBER, this::parseMember);
+        parseAll(Parseable.TAG, this::parseTag);
 
         for (var observer : observers) {
             observer.onRelation(relation);
@@ -155,35 +279,103 @@ public class OSMReader {
     }
 
     private void parseTag() {
-        var tag = OSMTag.from(get("k"), get("v").intern());
-        if (tag == null) return;
+        advance(7); // advance(QUOTE);
+        var k = getString();
+        var key = OSMTag.Key.from(k);
+        if (key == null) return;
+
+        advance(5); // advance(QUOTE);
+        var v = getString().intern();
+        var tag = new OSMTag(key, v);
+
         current.tags().add(tag);
     }
 
     private void parseNd() {
-        var node = nodes.get(getLong("ref"));
+        advance(8); // advance(QUOTE);
+        var ref = getLong();
+        var node = nodes.get(ref);
         if (node == null) return;
         wayNdList.add(node);
     }
 
     private void parseMember() {
-        if (get("type").equals("way")) {
-            var way = ways.get(getLong("ref"));
-            var member = OSMMemberWay.from(way, get("role"));
-            if (member == null) return;
-            ((OSMRelation) current).members().add(member);
+        advance(12); // advance(QUOTE);
+        var type = read();
+
+        if (type != 'w') return; // way
+
+        advance(10); // advance(QUOTE);
+        var ref = getLong();
+
+        advance(7); // advance(QUOTE);
+        var role = read();
+
+        if (role != 'o') return; // outer
+
+        var way = ways.get(ref);
+        if (way == null) return;
+
+        ((OSMRelation) current).ways().add(way);
+    }
+
+    private String getString() {
+        int off = cur;
+        advance(QUOTE);
+        int len = cur - off;
+
+        return new String(buf, off, len, StandardCharsets.UTF_8);
+    }
+
+    private long getLong() {
+        long num = 0;
+
+        int off = cur;
+        advance(QUOTE);
+        int len = cur - off;
+
+        for (int i = 0; i < len; i++) {
+            num = num * 10 + buf[off + i] - '0';
         }
+
+        return num;
     }
 
-    private String get(String attr) {
-        return reader.getAttributeValue(null, attr);
+    private double getDouble() {
+        int off = cur;
+        advance(DOT);
+        int len = cur - off;
+
+        // really nasty edge-case where some coords don't have any decimal places
+        if (len > 4) {
+            cur = off;
+            return getDoubleNoDecimals();
+        }
+
+        int first = readInt(off, len);
+
+        off = cur + 1;
+        advance(QUOTE);
+        len = cur - off;
+
+        int second = readInt(off, len);
+
+        return first + second / POWERS_OF_TEN[len];
     }
 
-    private long getLong(String attr) {
-        return Long.parseLong(get(attr));
+    private double getDoubleNoDecimals() {
+        int off = cur;
+        advance(QUOTE);
+        int len = cur - off;
+
+        return readInt(off, len);
     }
 
-    private double getDouble(String attr) {
-        return Double.parseDouble(get(attr));
+    private int readInt(int off, int len) {
+        int num = 0;
+        for (int i = 0; i < len; i++) {
+            num = num * 10 + buf[off + i] - '0';
+        }
+        return num;
     }
 }

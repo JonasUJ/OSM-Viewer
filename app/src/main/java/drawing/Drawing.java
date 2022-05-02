@@ -75,8 +75,13 @@ public class Drawing extends Entity implements Serializable {
 
     Drawing offset(int offset) {
         // Return a new instance with the same points, just with indices shifted by `offset`
+        var newIndices = new int[indices().size()];
+        for (int i = 0; i < indices().size(); i++) {
+            newIndices[i] = indices().get(i) + offset;
+        }
+
         return new Drawing(
-                new IntList(Arrays.stream(indices().toArray()).map(i -> i + offset).toArray()),
+                new IntList(newIndices),
                 new FloatList(vertices().toArray()),
                 new ByteList(drawables().toArray()),
                 id());
@@ -89,11 +94,13 @@ public class Drawing extends Entity implements Serializable {
         // TODO: Fix pacman
         for (double i = 0; i < Math.PI * 2; i += Math.PI / 15) {
             points.add(
-                    new Vector2D(
+                    Vector2D.create(
                             point.x() + Math.cos(i) * drawable.size, point.y() + Math.sin(i) * drawable.size));
         }
 
         draw(points, drawable, offset);
+
+        points.forEach(Vector2D::reuse);
     }
 
     void draw(List<Vector2D> points, Drawable drawable, int offset) {
@@ -114,10 +121,10 @@ public class Drawing extends Entity implements Serializable {
         }
 
         // Calculate indices for each vertex in triangulated polygon
-        Earcut.earcut(verts).stream()
-                // Offset each index before adding to indices
-                .map(i -> offset + i)
-                .forEach(indices()::add);
+        for (var i : Earcut.earcut(verts)) {
+            // Offset each index before adding to indices
+            indices().add(i + offset);
+        }
     }
 
     private void drawLine(List<Vector2D> points, Drawable drawable, int offset) {
@@ -139,14 +146,21 @@ public class Drawing extends Entity implements Serializable {
         var dir = to.sub(from);
 
         // find p0-3 by manipulating vectors
-        var p3 = dir.hat().normalize().scale(drawable.size);
+        var hat = dir.hat();
+        var norm = hat.normalize();
+
+        var p3 = norm.scale(drawable.size);
         var p0 = p3.scale(-1.0f);
         var p1 = p0.add(dir);
         var p2 = p3.add(dir);
 
+        dir.reuse();
+        hat.reuse();
+        norm.reuse();
+
         // These points are final, we can add them now
-        addVertex(p0.add(from), drawable);
-        addVertex(p3.add(from), drawable);
+        addVertexReuse(p0.add(from), drawable);
+        addVertexReuse(p3.add(from), drawable);
 
         // Loop through remaining points in line, calculating a pair of points in each iteration
         for (int i = 2; i < points.size(); i++) {
@@ -155,7 +169,10 @@ public class Drawing extends Entity implements Serializable {
             var nextDir = nextTo.sub(to);
 
             // Corners drawn from the next point
-            var p3Next = nextDir.hat().normalize().scale(drawable.size);
+            hat = nextDir.hat();
+            norm = hat.normalize();
+
+            var p3Next = norm.scale(drawable.size);
             var p0Next = p3Next.scale(-1.0f);
             var p1Next = p0Next.add(nextDir);
             var p2Next = p3Next.add(nextDir);
@@ -163,36 +180,54 @@ public class Drawing extends Entity implements Serializable {
             addLineIndices(offset);
 
             // Find intersections between previous two lines and next two lines
-            var intersect1 =
-                    Line.intersection(p0.add(to), p1.add(to), p0Next.add(nextTo), p1Next.add(nextTo));
-            var intersect2 =
-                    Line.intersection(p3.add(to), p2.add(to), p3Next.add(nextTo), p2Next.add(nextTo));
+            var aa = p0.add(to);
+            var ab = p1.add(to);
+            var ba = p0Next.add(nextTo);
+            var bb = p1Next.add(nextTo);
+            var intersect1 = Line.intersection(aa, ab, ba, bb);
+
+            aa.reuse();
+            ab.reuse();
+            ba.reuse();
+            bb.reuse();
+
+            aa = p3.add(to);
+            ab = p2.add(to);
+            ba = p3Next.add(nextTo);
+            bb = p2Next.add(nextTo);
+            var intersect2 = Line.intersection(aa, ab, ba, bb);
 
             // Intersection is null if lines are parallel
             if (intersect1 != null) {
-                addVertex(intersect1, drawable);
+                addVertexReuse(intersect1, drawable);
             } else {
-                addVertex(p1.add(to), drawable);
+                addVertexReuse(p1.add(to), drawable);
             }
 
             if (intersect2 != null) {
-                addVertex(intersect2, drawable);
+                addVertexReuse(intersect2, drawable);
             } else {
-                addVertex(p2.add(to), drawable);
+                addVertexReuse(p2.add(to), drawable);
             }
+
+            nextDir.reuse();
+            p0.reuse();
+            p1.reuse();
+            p2.reuse();
+            p3.reuse();
 
             // Move forward one point, setting the "current" points to the "next points"
             to = nextTo;
             p0 = p0Next;
             p1 = p1Next;
-            p3 = p3Next;
             p2 = p2Next;
+            p3 = p3Next;
         }
 
         addLineIndices(offset);
 
-        addVertex(p0.add(to), drawable);
-        addVertex(p3.add(to), drawable);
+        addVertexReuse(p0.add(to), drawable);
+        addVertexReuse(p3.add(to), drawable);
     }
 
     private void addLineIndices(int offset) {
@@ -212,6 +247,11 @@ public class Drawing extends Entity implements Serializable {
         vertices().add((float) vertex.x());
         vertices().add((float) vertex.y());
         drawables().add((byte) drawable.ordinal());
+    }
+
+    private void addVertexReuse(Vector2D vertex, Drawable drawable) {
+        addVertex(vertex, drawable);
+        vertex.reuse();
     }
 
     public int byteSize() {

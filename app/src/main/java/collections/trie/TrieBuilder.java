@@ -24,7 +24,7 @@ public class TrieBuilder<Value> implements Serializable {
      */
     @SuppressWarnings("unchecked")
     public FinalTrie<Value> build() {
-        //TODO: perhaps compress all keys that has 1 child to a string
+        // TODO: perhaps compress all keys that has 1 child to a string
 
         var trie = new FinalTrie<Value>(key, value, new FinalTrie[children.size()]);
 
@@ -89,5 +89,4 @@ public class TrieBuilder<Value> implements Serializable {
 
         return child.find(prefix, idx + 1);
     }
-
 }
