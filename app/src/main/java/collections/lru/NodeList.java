@@ -5,18 +5,14 @@ class NodeList<K, V> {
     private Node<K, V> back;
     private int size;
 
-    public void clear() {
-        size = 0;
-        front = null;
-        back = null;
-    }
-
     public void remove(Node<K, V> node) {
         // Remove from position in list
 
-        // node.left will never be null - the last element is never removed because LRUCache disallows
-        // capacities less than 1
-        node.left.right = node.right;
+        if (node.left == null) {
+            front = node.right;
+        } else {
+            node.left.right = node.right;
+        }
 
         if (node.right == null) {
             back = node.left;

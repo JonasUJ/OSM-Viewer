@@ -28,12 +28,12 @@ public class LRUCache<K, V> {
     public void setCapacity(int capacity) {
         if (capacity < 1) throw new IllegalArgumentException("capacity must be greater than 0");
         this.capacity = capacity;
-        cleanup();
+        ensureSize(capacity);
     }
 
     public void clear() {
         nodeMap.clear();
-        evictionQueue.clear();
+        ensureSize(0);
     }
 
     public void set(K key, V value) {
@@ -51,7 +51,7 @@ public class LRUCache<K, V> {
         nodeMap.put(key, node);
         evictionQueue.add(node);
 
-        cleanup();
+        ensureSize(capacity);
     }
 
     public V get(K key) {
@@ -62,8 +62,8 @@ public class LRUCache<K, V> {
         return node.get();
     }
 
-    private void cleanup() {
-        while (evictionQueue.size() > getCapacity()) {
+    private void ensureSize(int size) {
+        while (evictionQueue.size() > size) {
             var evicted = evictionQueue.pop();
             nodeMap.remove(evicted.key);
 
