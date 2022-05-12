@@ -1,7 +1,6 @@
 package collections.lru;
 
 import collections.Cache;
-
 import java.util.*;
 
 public class LRUCache<K, V> implements Cache<K, V> {

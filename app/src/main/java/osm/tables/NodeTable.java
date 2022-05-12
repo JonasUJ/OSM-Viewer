@@ -1,7 +1,6 @@
 package osm.tables;
 
 import collections.ArrayListRefTable;
-import collections.RefTable;
 import osm.OSMObserver;
 import osm.elements.OSMNode;
 import osm.elements.SlimOSMNode;
