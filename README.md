@@ -1,1 +1,5 @@
-# WIP Group exam project due in week 20
+# OSM-Viewer
+
+Group exam project
+
+Views osm files
