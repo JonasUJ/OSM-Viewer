@@ -5,7 +5,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
-/** FinalTrie is a readonly Trie */
+/**
+ * FinalTrie is a readonly Trie
+ */
 public class FinalTrie<Value> implements Trie<Value>, Iterable<Entry<String, Value>>, Serializable {
     final char key;
     final Value value;

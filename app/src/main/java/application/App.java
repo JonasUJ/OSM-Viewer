@@ -2,10 +2,11 @@ package application;
 
 import features.FeatureSet;
 import io.FileParser;
-import java.io.File;
 import javafx.application.Application;
 import javafx.stage.Stage;
 import view.Model;
+
+import java.io.File;
 
 public class App extends Application {
     @Override
@@ -16,7 +17,9 @@ public class App extends Application {
         var model =
                 new Model(
                         FileParser.readMap(
-                                FileParser.createMapFromOsm(new File("data/bornholm.xml.zip"), FeatureSet.ALL)));
+                                FileParser.createMapFromOsm(
+                                        new File("data/bornholm.xml.zip"), FeatureSet.ALL, null)),
+                        null);
 
         new View(model, primaryStage);
     }

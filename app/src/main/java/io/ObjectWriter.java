@@ -1,14 +1,15 @@
 package io;
 
 import geometry.Rect;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
 import osm.OSMObserver;
 import osm.elements.OSMNode;
 import osm.elements.OSMRelation;
 import osm.elements.OSMWay;
+
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
 
 /**
  * Keeps an object in memory and writes it to the output stream at the end

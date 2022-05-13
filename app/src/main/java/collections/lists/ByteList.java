@@ -7,7 +7,8 @@ public class ByteList implements Serializable {
     private byte[] array = new byte[8];
     private int n = 0;
 
-    public ByteList() {}
+    public ByteList() {
+    }
 
     public ByteList(byte[] array) {
         this.array = array;

@@ -1,34 +1,36 @@
 package navigation;
 
-import static osm.elements.OSMTag.Key.HIGHWAY;
-import static osm.elements.OSMTag.Key.NAME;
-
-import collections.spatial.TwoDTree;
+import collections.spatial.LinearSearchTwoDTree;
+import collections.spatial.SpatialTree;
 import geometry.Point;
 import geometry.Rect;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 import javafx.util.Pair;
 import osm.OSMObserver;
 import osm.elements.OSMTag;
 import osm.elements.OSMWay;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+
+import static osm.elements.OSMTag.Key.HIGHWAY;
+import static osm.elements.OSMTag.Key.NAME;
+
 public class NearestNeighbor implements OSMObserver, Serializable {
+    private transient Rect bounds;
     private transient List<Pair<Point, String>> nodeCache = new ArrayList<>();
-    private TwoDTree<String> twoDTree;
+
+    private SpatialTree<String> tree;
 
     @Override
     public void onBounds(Rect bounds) {
-        twoDTree = new TwoDTree<>((float)Point.geoToMapX(bounds.left()),
-            (float)Point.geoToMapY(bounds.bottom()),
-            (float)Point.geoToMapX(bounds.right()),
-            (float)Point.geoToMapY(bounds.top()));
+        this.bounds = bounds;
+        tree = new LinearSearchTwoDTree<>(1000, bounds);
     }
 
     @Override
     public void onWay(OSMWay way) {
-        assert twoDTree != null;
+        assert tree != null;
 
         var tags = way.tags();
 
@@ -43,7 +45,7 @@ public class NearestNeighbor implements OSMObserver, Serializable {
         }
 
         for (var node : way.nodes()) {
-            var point = new Point((float)Point.geoToMapX(node.lon()), (float)Point.geoToMapY(node.lat()));
+            var point = new Point((float) node.lon(), (float) node.lat());
             var pair = new Pair<>(point, name);
             nodeCache.add(pair);
         }
@@ -56,23 +58,27 @@ public class NearestNeighbor implements OSMObserver, Serializable {
         addToTree(nodes, 0);
     }
 
-    public String nearestTo(Point query) {
-        var nearestResult = twoDTree.nearest(query);
+    public String nearestRoad(Point query) {
+        var nearestResult = tree.nearest(query);
 
         return nearestResult.value();
     }
 
     private void addToTree(List<Pair<Point, String>> nodes, int level) {
-        nodes.sort((first, second) -> (level & 1) == 0 ?
-            Float.compare(first.getKey().x(), second.getKey().x()) :
-            Float.compare(first.getKey().y(), second.getKey().y()));
+        nodes.sort(
+                (first, second) ->
+                        (level & 1) == 0
+                                ? Float.compare(first.getKey().x(), second.getKey().x())
+                                : Float.compare(first.getKey().y(), second.getKey().y()));
 
         var halfSize = nodes.size() / 2;
         var median = nodes.get(halfSize);
         var point = median.getKey();
         var name = median.getValue();
 
-        twoDTree.insert(point, name);
+        if (bounds.contains(point)) {
+            tree.insert(point, name);
+        }
 
         if (nodes.size() == 1) {
             return;

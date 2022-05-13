@@ -1,7 +1,7 @@
 package collections.spatial;
 
-import canvas.Renderer;
 import drawing.Drawable;
+import drawing.DrawableEnum;
 import drawing.Drawing;
 import geometry.Point;
 import geometry.Rect;
@@ -12,21 +12,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TwoDTree<E> implements SpatialTree<E>, Serializable {
-    private final float left, top, right, bottom;
+    private final Rect bounds;
 
     private Node<E> root;
     private int size;
     private int height;
 
     public TwoDTree() {
-        this(0, 0, 1, 1);
+        this(new Rect(0, 0, 1, 1));
     }
 
-    public TwoDTree(float left, float top, float right, float bottom) {
-        this.left = left;
-        this.top = top;
-        this.right = right;
-        this.bottom = bottom;
+    public TwoDTree(Rect bounds) {
+        this.bounds = bounds;
     }
 
     @Override
@@ -34,6 +31,7 @@ public class TwoDTree<E> implements SpatialTree<E>, Serializable {
         return size;
     }
 
+    @Override
     public int height() {
         return height;
     }
@@ -44,22 +42,27 @@ public class TwoDTree<E> implements SpatialTree<E>, Serializable {
             throw new IllegalArgumentException("Parameter 'point' cannot be null.");
         }
 
+        if (!bounds.contains(point)) {
+            throw new IllegalArgumentException(
+                    "The specified point is not contained within the bounds of the tree.");
+        }
+
         if (isEmpty()) {
             root = insert(point, value, root, 0);
-            root.rect = new Rect(top, left, bottom, right);
+            root.rect = bounds;
+            height = 1;
         } else {
             root = insert(point, value, root, 1);
         }
     }
 
     private Node<E> insert(Point point, E value, Node<E> node, int level) {
-        height = Math.max(level + 1, height);
-
         if (node == null) {
             // The base case, insert a new node by returning it to the parent.
             size++;
+            height = Math.max(level, height);
 
-            return new Node<>(point, value, null);
+            return new Node<>(point, value);
         }
 
         if (node.point.equals(point)) {
@@ -67,45 +70,29 @@ public class TwoDTree<E> implements SpatialTree<E>, Serializable {
             return node;
         }
 
-        // Check if level is even.
-        if ((level & 1) == 0) {
-            // Search by y-coordinate (point with horizontal partition line).
+        var isLower = (level & 1) == 0 ? point.y() < node.y() : point.x() < node.x();
 
-            // We want to call insert on the left side if the new point is smaller at the y-axis.
-            if (point.y() < node.y()) {
-                // Traverse down the tree. If this is a null child an insert will be performed.
-                node.left = insert(point, value, node.left, level + 1);
+        if (isLower) {
+            node.left = insert(point, value, node.left, level + 1);
 
-                // If the child node has an uninitialized rect we initialize it.
-                if (node.left.rect == null) {
-                    node.left.rect = new Rect(node.rect.top(), node.rect.left(), node.y(), node.rect.right());
-                }
-            } else {
-                node.right = insert(point, value, node.right, level + 1);
-
-                if (node.right.rect == null) {
-                    node.right.rect =
-                            new Rect(node.y(), node.rect.left(), node.rect.bottom(), node.rect.right());
-                }
+            if (node.left.rect == null) {
+                node.left.rect =
+                        new Rect(
+                                node.rect.top(),
+                                node.rect.left(),
+                                (level & 1) == 0 ? node.y() : node.rect.bottom(),
+                                (level & 1) != 0 ? node.x() : node.rect.right());
             }
         } else {
-            // Search by x-coordinate (point with vertical partition line).
+            node.right = insert(point, value, node.right, level + 1);
 
-            // We want to call insert on the left side if the new point is smaller at the x-axis.
-            if (point.x() < node.x()) {
-                node.left = insert(point, value, node.left, level + 1);
-
-                if (node.left.rect == null) {
-                    node.left.rect =
-                            new Rect(node.rect.top(), node.rect.left(), node.rect.bottom(), node.x());
-                }
-            } else {
-                node.right = insert(point, value, node.right, level + 1);
-
-                if (node.right.rect == null) {
-                    node.right.rect =
-                            new Rect(node.rect.top(), node.x(), node.rect.bottom(), node.rect.right());
-                }
+            if (node.right.rect == null) {
+                node.right.rect =
+                        new Rect(
+                                (level & 1) == 0 ? node.y() : node.rect.top(),
+                                (level & 1) != 0 ? node.x() : node.rect.left(),
+                                node.rect.bottom(),
+                                node.rect.right());
             }
         }
 
@@ -126,25 +113,12 @@ public class TwoDTree<E> implements SpatialTree<E>, Serializable {
             return true;
         }
 
-        // Check if level is even.
-        if ((level & 1) == 0) {
-            // Search by y-coordinate (point with horizontal partition line).
+        var isLower = (level & 1) == 0 ? point.y() < node.y() : point.x() < node.x();
 
-            // We want to check the left side if the point is smaller at the y-axis.
-            if (point.y() < node.y()) {
-                return contains(point, node.left, level + 1);
-            } else {
-                return contains(point, node.right, level + 1);
-            }
+        if (isLower) {
+            return contains(point, node.left, level + 1);
         } else {
-            // Search by x-coordinate (point with vertical partition line).
-
-            // We want to check the left side if the point is smaller at the x-axis.
-            if (point.x() < node.x()) {
-                return contains(point, node.left, level + 1);
-            } else {
-                return contains(point, node.right, level + 1);
-            }
+            return contains(point, node.right, level + 1);
         }
     }
 
@@ -183,50 +157,26 @@ public class TwoDTree<E> implements SpatialTree<E>, Serializable {
             champ = new QueryResult<>(node.point, node.value);
         }
 
-        // Check if level is even.
-        if ((level & 1) == 0) {
-            // Search by y-coordinate (point with horizontal partition line).
+        var isLower = (level & 1) == 0 ? query.y() < node.y() : query.x() < node.x();
 
-            // We want to check the right side if the query point is greater at the y-axis.
-            if (node.y() < query.y()) {
-                // Traverse down the tree to check child nodes.
+        if (isLower) {
+            champ = nearest(query, node.left, champ, best, level + 1);
+
+            // Decide if we need to go down and check the other child.
+            // Compare the distance from the query point to the nearest point of the node rectangle
+            // against the distance from the query point to the current champion point.
+            // If it is smaller, there could potentially be a point that is closer to the query point
+            // than the current champion point.
+            if (node.right != null
+                    && node.right.rect.distanceSquaredTo(query) < champ.point().distanceSquaredTo(query)) {
                 champ = nearest(query, node.right, champ, best, level + 1);
-
-                // Decide if we need to go down and check the other child.
-                // Compare the distance from the query point to the nearest point of the node rectangle
-                // against the distance from the query point to the current champion point.
-                // If it is smaller, there could potentially be a point that is closer to the query point
-                // than the current champion point.
-                if (node.left != null
-                        && node.left.rect.distanceSquaredTo(query) < champ.point().distanceSquaredTo(query)) {
-                    champ = nearest(query, node.left, champ, best, level + 1);
-                }
-            } else {
-                champ = nearest(query, node.left, champ, best, level + 1);
-
-                if (node.right != null
-                        && node.right.rect.distanceSquaredTo(query) < champ.point().distanceSquaredTo(query)) {
-                    champ = nearest(query, node.right, champ, best, level + 1);
-                }
             }
         } else {
-            // Search by x-coordinate (point with vertical partition line).
+            champ = nearest(query, node.right, champ, best, level + 1);
 
-            // We want to check the right side if the query point is greater at the x-axis.
-            if (node.x() < query.x()) {
-                champ = nearest(query, node.right, champ, best, level + 1);
-
-                if (node.left != null
-                        && node.left.rect.distanceSquaredTo(query) < champ.point().distanceSquaredTo(query)) {
-                    champ = nearest(query, node.left, champ, best, level + 1);
-                }
-            } else {
+            if (node.left != null
+                    && node.left.rect.distanceSquaredTo(query) < champ.point().distanceSquaredTo(query)) {
                 champ = nearest(query, node.left, champ, best, level + 1);
-
-                if (node.right != null
-                        && node.right.rect.distanceSquaredTo(query) < champ.point().distanceSquaredTo(query)) {
-                    champ = nearest(query, node.right, champ, best, level + 1);
-                }
             }
         }
 
@@ -259,18 +209,12 @@ public class TwoDTree<E> implements SpatialTree<E>, Serializable {
         range(query, node.right, results);
     }
 
-    public void draw(Renderer renderer) {
-        var drawing = new Drawing();
-        addToDrawing(root, 1, drawing);
-        renderer.draw(drawing);
-    }
-
     private void addToDrawing(Node<E> node, int level, Drawing drawing) {
         if (node == null) {
             return;
         }
 
-        drawing.draw(Drawing.create(new Vector2D(node.x(), node.y()), Drawable.POINT));
+        drawing.draw(Drawing.create(Vector2D.create(node.x(), node.y()), DrawableEnum.POINT));
 
         var x1 = node.rect.left();
         var x2 = node.rect.right();
@@ -281,15 +225,15 @@ public class TwoDTree<E> implements SpatialTree<E>, Serializable {
 
         if ((level & 1) == 0) {
             y1 = y2 = node.y();
-            drawable = Drawable.PARTITION_HORIZONTAL;
+            drawable = DrawableEnum.PARTITION_HORIZONTAL;
 
         } else {
             x1 = x2 = node.x();
-            drawable = Drawable.PARTITION_VERTICAL;
+            drawable = DrawableEnum.PARTITION_VERTICAL;
         }
 
-        var point1 = new Vector2D(x1, y1);
-        var point2 = new Vector2D(x2, y2);
+        var point1 = Vector2D.create(x1, y1);
+        var point2 = Vector2D.create(x2, y2);
         drawing.draw(Drawing.create(List.of(point1, point2), drawable));
 
         addToDrawing(node.left, level + 1, drawing);
@@ -303,10 +247,9 @@ public class TwoDTree<E> implements SpatialTree<E>, Serializable {
         private Node<E> left;
         private Node<E> right;
 
-        public Node(Point point, E value, Rect rect) {
+        public Node(Point point, E value) {
             this.point = point;
             this.value = value;
-            this.rect = rect;
         }
 
         public float x() {

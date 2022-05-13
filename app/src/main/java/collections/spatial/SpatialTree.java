@@ -6,6 +6,8 @@ import geometry.Rect;
 public interface SpatialTree<E> {
     int size();
 
+    int height();
+
     void insert(Point point, E value);
 
     boolean contains(Point point);

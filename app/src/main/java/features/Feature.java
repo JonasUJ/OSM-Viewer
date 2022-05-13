@@ -2,10 +2,11 @@ package features;
 
 import Search.AddressDatabase;
 import io.*;
-import java.io.ObjectInputStream;
-import java.util.function.Function;
 import navigation.Dijkstra;
 import navigation.NearestNeighbor;
+
+import java.io.ObjectInputStream;
+import java.util.function.Function;
 
 public enum Feature {
     DRAWING("Visuals", PolygonsReader::new),

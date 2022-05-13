@@ -5,18 +5,6 @@ public record Line(double ax, double ay, double bx, double by) {
         this(a.x(), a.y(), b.x(), b.y());
     }
 
-    public Vector2D a() {
-        return new Vector2D(ax, ay);
-    }
-
-    public Vector2D b() {
-        return new Vector2D(bx, by);
-    }
-
-    public Vector2D intersection(Line other) {
-        return intersection(this, other);
-    }
-
     public static Vector2D intersection(Line a, Line b) {
         return intersection(a.a(), a.b(), b.a(), b.b());
     }
@@ -38,6 +26,18 @@ public record Line(double ax, double ay, double bx, double by) {
         double y = (pre * (y3 - y4) - (y1 - y2) * post) / d;
 
         // Return the point of intersection
-        return new Vector2D(x, y);
+        return Vector2D.create(x, y);
+    }
+
+    public Vector2D a() {
+        return Vector2D.create(ax, ay);
+    }
+
+    public Vector2D b() {
+        return Vector2D.create(bx, by);
+    }
+
+    public Vector2D intersection(Line other) {
+        return intersection(this, other);
     }
 }

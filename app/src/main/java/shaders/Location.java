@@ -24,7 +24,9 @@ public enum Location {
         this.type = type;
     }
 
-    /** @return shader attribute name as it is appearing in the shader source code. */
+    /**
+     * @return shader attribute name as it is appearing in the shader source code.
+     */
     public String getName() {
         return name;
     }

@@ -10,8 +10,8 @@ import java.util.ArrayList;
  */
 public class TrieBuilder<Value> implements Serializable {
     private final char key;
-    private Value value;
     private final ArrayList<TrieBuilder<Value>> children = new ArrayList<>();
+    private Value value;
 
     public TrieBuilder(char key) {
         this.key = key;
@@ -24,7 +24,7 @@ public class TrieBuilder<Value> implements Serializable {
      */
     @SuppressWarnings("unchecked")
     public FinalTrie<Value> build() {
-        //TODO: perhaps compress all keys that has 1 child to a string
+        // TODO: perhaps compress all keys that has 1 child to a string
 
         var trie = new FinalTrie<Value>(key, value, new FinalTrie[children.size()]);
 
@@ -38,7 +38,7 @@ public class TrieBuilder<Value> implements Serializable {
     /**
      * Add a new entry pair to the trie
      *
-     * @param key Key of the entry
+     * @param key   Key of the entry
      * @param value Value of the entry
      */
     public void put(String key, Value value) {
@@ -89,5 +89,4 @@ public class TrieBuilder<Value> implements Serializable {
 
         return child.find(prefix, idx + 1);
     }
-
 }

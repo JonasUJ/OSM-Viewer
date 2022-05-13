@@ -1,11 +1,12 @@
 package application;
 
 import geometry.Point;
-import java.io.IOException;
 import javafx.fxml.FXMLLoader;
 import javafx.stage.Stage;
 import view.Controller;
 import view.Model;
+
+import java.io.IOException;
 
 public class View {
     public View(Model model, Stage stage) throws IOException {

@@ -1,22 +1,19 @@
 package canvas;
 
+import collections.grid.Grid;
 import com.jogamp.opengl.*;
-import drawing.Drawable;
+import drawing.DrawableEnum;
 import io.PolygonsReader;
-import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
+
 import java.nio.IntBuffer;
+import java.util.TreeMap;
 
 public class Model {
-
     private final GLCapabilities caps;
     private final GLAutoDrawable sharedDrawable;
-    private VBOWrapper[] vbo;
     private final IntBuffer tex = IntBuffer.allocate(TexType.values().length);
-    private int indexCount;
-    private VBOWrapper indexVBO;
-    private VBOWrapper vertexVBO;
-    private VBOWrapper drawableVBO;
+    private TreeMap<Float, Grid<Chunk>> chunks;
+    private Chunk baseChunk;
 
     public Model(PolygonsReader reader) {
         caps = new GLCapabilities(GLProfile.getMaxFixedFunc(true));
@@ -40,21 +37,6 @@ public class Model {
                 glAutoDrawable -> {
                     var gl = glAutoDrawable.getGL().getGL3();
 
-                    indexCount = reader.getIndexCount();
-                    var vertexCount = reader.getVertexCount();
-                    var drawableCount = reader.getDrawableCount();
-
-                    // Pre-allocate buffers with correct size
-                    indexVBO =
-                            new VBOWrapper(
-                                    glAutoDrawable, GL3.GL_ELEMENT_ARRAY_BUFFER, (long) indexCount * Integer.BYTES);
-                    vertexVBO =
-                            new VBOWrapper(glAutoDrawable, GL3.GL_ARRAY_BUFFER, (long) vertexCount * Float.BYTES);
-                    drawableVBO =
-                            new VBOWrapper(
-                                    glAutoDrawable, GL3.GL_ARRAY_BUFFER, (long) drawableCount * Byte.BYTES);
-                    vbo = new VBOWrapper[] {indexVBO, vertexVBO, drawableVBO};
-
                     // Get new id's for textures
                     gl.glGenTextures(tex.capacity(), tex);
 
@@ -67,11 +49,11 @@ public class Model {
                             GL3.GL_TEXTURE_1D,
                             0,
                             GL3.GL_RGBA,
-                            Drawable.values().length,
+                            DrawableEnum.values().length,
                             0,
                             GL3.GL_RGBA,
                             GL3.GL_FLOAT,
-                            Drawable.COLOR_MAP.rewind());
+                            DrawableEnum.COLOR_MAP.rewind());
 
                     gl.glActiveTexture(GL3.GL_TEXTURE1);
                     gl.glBindTexture(GL3.GL_TEXTURE_1D, getTex(TexType.MAP));
@@ -81,33 +63,39 @@ public class Model {
                             GL3.GL_TEXTURE_1D,
                             0,
                             GL3.GL_RG32UI,
-                            Drawable.values().length,
+                            DrawableEnum.values().length,
                             0,
                             GL3.GL_RG_INTEGER,
                             GL3.GL_UNSIGNED_INT,
-                            Drawable.MAP.rewind());
+                            DrawableEnum.MAP.rewind());
 
-                    var curIndex = 0;
-                    var curVertex = 0;
-                    var curDrawable = 0;
+                    // Prepare chunks map for data
+                    chunks = new TreeMap<>();
+                    var map = reader.getChunks();
+                    for (var m : map.entrySet()) {
+                        for (var chunk : m.getValue().values()) {
+                            chunk.init(glAutoDrawable);
+                        }
 
-                    for (var drawing : reader.read()) {
-                        // Upload chunk
-                        indexVBO.set(
-                                IntBuffer.wrap(drawing.indices().getArray()), curIndex, drawing.indices().size());
-                        vertexVBO.set(
-                                FloatBuffer.wrap(drawing.vertices().getArray()),
-                                curVertex,
-                                drawing.vertices().size());
-                        drawableVBO.set(
-                                ByteBuffer.wrap(drawing.drawables().getArray()),
-                                curDrawable,
-                                drawing.drawables().size());
-
-                        curIndex += drawing.indices().size();
-                        curVertex += drawing.vertices().size();
-                        curDrawable += drawing.drawables().size();
+                        chunks.put(m.getKey(), new Grid<>(reader.getBounds(), m.getKey(), m.getValue()));
                     }
+
+                    // Read all data
+                    for (var partialChunk : reader.read()) {
+                        var chunk = map.get(partialChunk.cellSize).get(partialChunk.point);
+
+                        // Upload partial chunk
+                        chunk.add(partialChunk);
+                    }
+
+                    var partialBaseChunk = reader.getBaseChunk();
+                    baseChunk =
+                            new Chunk(
+                                    partialBaseChunk.getTotalIndices(),
+                                    partialBaseChunk.getTotalVertices(),
+                                    partialBaseChunk.getTotalDrawables());
+                    baseChunk.init(glAutoDrawable);
+                    baseChunk.add(partialBaseChunk);
 
                     System.gc();
 
@@ -123,42 +111,44 @@ public class Model {
         return sharedDrawable;
     }
 
-    /**
-     * Get the generated buffer with the given type
-     *
-     * @param type
-     * @return Buffer wrapper
-     */
-    public VBOWrapper getVBO(Model.VBOType type) {
-        return vbo[type.ordinal()];
-    }
-
     public int getTex(Model.TexType type) {
         return tex.get(type.ordinal());
-    }
-
-    /**
-     * Get the amount of vertices
-     *
-     * @return How many vertices are stored in the model
-     */
-    public int getCount() {
-        return indexCount;
     }
 
     public void dispose() {
         for (int i = 0; i < sharedDrawable.getGLEventListenerCount(); i++) {
             sharedDrawable.disposeGLEventListener(sharedDrawable.getGLEventListener(i), false);
         }
-        indexVBO.dispose();
-        vertexVBO.dispose();
-        drawableVBO.dispose();
+
+        sharedDrawable.invoke(
+                false,
+                glAutoDrawable -> {
+                    for (var grid : chunks.values()) {
+                        for (var chunk : grid) {
+                            chunk.dispose();
+                        }
+                    }
+
+                    return true;
+                });
     }
 
-    enum VBOType {
-        INDEX,
-        VERTEX,
-        DRAWABLE,
+    public TreeMap<Float, Grid<Chunk>> getAllChunks() {
+        return chunks;
+    }
+
+    public Grid<Chunk> getChunks(float size) {
+        var entry = chunks.floorEntry(size);
+
+        if (entry == null) {
+            entry = chunks.firstEntry();
+        }
+
+        return entry.getValue();
+    }
+
+    public Chunk getBaseChunk() {
+        return baseChunk;
     }
 
     enum TexType {

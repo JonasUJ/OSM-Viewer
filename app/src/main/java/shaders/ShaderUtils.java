@@ -4,6 +4,7 @@
 package shaders;
 
 import com.jogamp.opengl.GL3;
+
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -29,7 +30,7 @@ public class ShaderUtils {
      * @throws Exception when an error occurs loading resource.
      */
     public static String loadResource(String fileName) throws Exception {
-        try (InputStream in = ShaderUtils.class.getClassLoader().getResourceAsStream(fileName)) {
+        try (InputStream in = ShaderUtils.class.getResource(fileName).openStream()) {
             return new Scanner(in, StandardCharsets.UTF_8).useDelimiter("\\A").next();
         }
     }
@@ -37,8 +38,8 @@ public class ShaderUtils {
     /**
      * Creates and compile the shader in the shader program.
      *
-     * @param gl context.
-     * @param programId to create its shaders.
+     * @param gl         context.
+     * @param programId  to create its shaders.
      * @param shaderCode to compile.
      * @param shaderType of the shader to be compiled.
      * @return the id of the created and compiled shader.
@@ -51,7 +52,7 @@ public class ShaderUtils {
             throw new Exception("Error creating shader. Shader id is zero.");
         }
 
-        gl.glShaderSource(shaderId, 1, new String[] {shaderCode}, null);
+        gl.glShaderSource(shaderId, 1, new String[]{shaderCode}, null);
         gl.glCompileShader(shaderId);
 
         IntBuffer intBuffer = IntBuffer.allocate(1);
@@ -76,7 +77,7 @@ public class ShaderUtils {
     /**
      * Links the shaders within created shader program.
      *
-     * @param gl context.
+     * @param gl        context.
      * @param programId to link its shaders.
      * @throws Exception when an error occurs linking the shaders.
      */
@@ -95,7 +96,5 @@ public class ShaderUtils {
             }
             throw new Exception("Error linking shader program!");
         }
-
-       
     }
 }

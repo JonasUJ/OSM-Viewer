@@ -7,23 +7,23 @@ import osm.elements.OSMNode;
 import osm.elements.OSMRelation;
 import osm.elements.OSMWay;
 
-/** Simple observer that just prints out some stats every second */
+/**
+ * Simple observer that just prints out some stats every second
+ */
 public class ReaderStats implements OSMObserver {
-    private long prevNodeCount = 0;
-    private long prevWayCount = 0;
-    private long prevRelationCount = 0;
-    private long curNodeCount = 0;
-    private long curWayCount = 0;
-    private long curRelationCount = 0;
-
     public final LongProperty nodeTotal = new SimpleLongProperty();
     public final LongProperty wayTotal = new SimpleLongProperty();
     public final LongProperty relationTotal = new SimpleLongProperty();
     public final LongProperty nodeThroughput = new SimpleLongProperty();
     public final LongProperty wayThroughput = new SimpleLongProperty();
     public final LongProperty relationThroughput = new SimpleLongProperty();
-
     private final long updateInterval;
+    private long prevNodeCount = 0;
+    private long prevWayCount = 0;
+    private long prevRelationCount = 0;
+    private long curNodeCount = 0;
+    private long curWayCount = 0;
+    private long curRelationCount = 0;
     private long lastUpdate = System.nanoTime();
 
     public ReaderStats(long updateInterval) {

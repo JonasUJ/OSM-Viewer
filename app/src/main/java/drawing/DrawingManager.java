@@ -2,19 +2,13 @@ package drawing;
 
 import collections.Entity;
 import geometry.Vector2D;
+
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import javafx.util.Pair;
 
 public class DrawingManager {
-    public record DrawingInfo(
-            Drawing drawing, int indicesStart, int verticesStart, int drawablesStart) {}
-
     private final List<DrawingInfo> drawings = new ArrayList<>();
-    private final List<Pair<Integer, Drawing>> drawingCache = new ArrayList<>();
     private final Drawing drawing = new Drawing();
-    private int cacheByteSize;
 
     private DrawingInfo createDrawingInfo(Drawing drawing) {
         return new DrawingInfo(
@@ -48,17 +42,16 @@ public class DrawingManager {
         return draw(Drawing.create(points, drawable, offset));
     }
 
+    public DrawingInfo draw(Vector2D point, Drawable drawable) {
+        return draw(Drawing.create(point, drawable));
+    }
+
     /**
      * Add a drawing to the manager.
      *
      * @param drawing Drawing to add.
      */
     public DrawingInfo draw(Drawing drawing) {
-        flush();
-        return drawInternal(drawing);
-    }
-
-    private DrawingInfo drawInternal(Drawing drawing) {
         var info = createDrawingInfo(drawing);
         drawings.add(info);
         this.drawing.draw(drawing);
@@ -66,57 +59,9 @@ public class DrawingManager {
     }
 
     /**
-     * Helper method that creates a drawing, adds it orderly to the manager, and returns a reference
-     * to the newly created drawing.
-     *
-     * @param points
-     * @param drawable
-     * @return
+     * Remove all drawings, but retain allocated memory.
      */
-    public Drawing drawOrdered(List<Vector2D> points, Drawable drawable) {
-        return drawOrdered(points, drawable, 0);
-    }
-
-    /**
-     * Helper method that creates a drawing, adds it orderly to the manager, and returns a reference
-     * to the newly created drawing.
-     *
-     * @param points
-     * @param drawable
-     * @param offset
-     * @return
-     */
-    public Drawing drawOrdered(List<Vector2D> points, Drawable drawable, int offset) {
-        var drawing = Drawing.create(points, drawable, offset);
-        drawOrdered(drawing, drawable.ordinal());
-        return drawing;
-    }
-
-    /**
-     * Add a drawing to the manager, but in a specific order relative to other drawings.
-     *
-     * @param drawing Drawing to add.
-     * @param order Relative order to other drawings.
-     */
-    public void drawOrdered(Drawing drawing, int order) {
-        cacheByteSize += drawing.byteSize();
-        drawingCache.add(new Pair<>(order, drawing));
-    }
-
-    private void flush() {
-        if (drawingCache.isEmpty()) return;
-
-        drawingCache.sort(Comparator.comparingInt(Pair::getKey));
-        for (var pair : drawingCache) {
-            drawInternal(pair.getValue());
-        }
-        drawingCache.clear();
-        cacheByteSize = 0;
-    }
-
-    /** Remove all drawings, but retain allocated memory. */
     public void clear() {
-        drawingCache.clear();
         drawings.clear();
         drawing.clear();
     }
@@ -130,8 +75,6 @@ public class DrawingManager {
      * @return Info after which the changes have been made.
      */
     public DrawingInfo clear(Entity drawing) {
-        flush();
-
         // Search for entity
         var idx = -1;
         for (int i = 0; i < drawings.size(); i++) {
@@ -168,7 +111,7 @@ public class DrawingManager {
     }
 
     public int byteSize() {
-        return cacheByteSize + drawing.byteSize();
+        return drawing.byteSize();
     }
 
     /**
@@ -177,7 +120,10 @@ public class DrawingManager {
      * @return
      */
     public Drawing drawing() {
-        flush();
         return drawing;
+    }
+
+    public record DrawingInfo(
+            Drawing drawing, int indicesStart, int verticesStart, int drawablesStart) {
     }
 }

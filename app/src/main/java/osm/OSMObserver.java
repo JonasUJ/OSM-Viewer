@@ -7,13 +7,18 @@ import osm.elements.OSMWay;
 
 public interface OSMObserver {
     // Don't like default? Sue me.
-    default void onBounds(Rect bounds) {}
+    default void onBounds(Rect bounds) {
+    }
 
-    default void onNode(OSMNode node) {}
+    default void onNode(OSMNode node) {
+    }
 
-    default void onWay(OSMWay way) {}
+    default void onWay(OSMWay way) {
+    }
 
-    default void onRelation(OSMRelation relation) {}
+    default void onRelation(OSMRelation relation) {
+    }
 
-    default void onFinish() {}
+    default void onFinish() {
+    }
 }

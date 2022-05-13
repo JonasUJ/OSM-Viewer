@@ -1,4 +1,4 @@
-#allVBox {
+ VBox {
     -fx-font-size: 16px;
     -fx-font-family: "Times New Roman", Times, serif;
     -fx-background-color: rgb(61, 61, 61);
@@ -8,11 +8,23 @@
     -fx-text-fill: #ffffff;
 }
 
+#scaleBarRectangle1 {
+    -fx-fill: rgb(255, 255, 255);
+}
+
+#scaleBarRectangle2 {
+    -fx-fill: rgb(0, 0, 0);
+}
+
 .button {
     -fx-background-radius: 10px;
     -fx-background-color: #ffffff;
     -fx-text-fill: #000000;
 }
+ .button:hover {
+     -fx-background-color: #cccccc  ;
+
+ }
 
 #removeButton{
     -fx-background-color: #e6e6e6;
@@ -32,7 +44,7 @@
 .radio-button .radio:selected {
     -fx-background-color: white;
     -fx-border-color:grey;
-}  
+}
 
 .check-box {
     -fx-text-fill: #ffffff;
@@ -41,7 +53,7 @@
 .check-box .box {
     -fx-background-color: white;
     -fx-border-color:grey;
-    -fx-border-radius:3px;  
+    -fx-border-radius:3px;
 }
 
 .check-box:selected .mark {

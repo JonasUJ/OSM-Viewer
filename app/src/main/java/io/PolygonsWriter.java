@@ -1,96 +1,102 @@
 package io;
 
+import collections.grid.Grid;
 import drawing.*;
 import geometry.Point;
 import geometry.Rect;
 import geometry.Vector2D;
-import java.io.*;
+import osm.elements.OSMRelation;
+import osm.elements.OSMWay;
+import osm.elements.SlimOSMNode;
+import osm.elements.SlimOSMWay;
+
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import osm.elements.*;
 
-/** Writes Drawings to a file as they are finished */
+/**
+ * Writes Drawings to a file as they are finished
+ */
 public class PolygonsWriter extends TempFileWriter {
+    private static final int MAX_SIZE = 100 * 1024 * 1024; // Max size on heap before flushing chunks
+    private static final float CELL_SIZE = 0.05f;
+    private static final int GRIDS = 3;
 
-    private int indexCount;
-    private int vertexCount;
-    private int drawableCount;
-    private final DrawingManager manager = new DrawingManager();
+    private final List<Vector2D> points = new ArrayList<>();
+    private final PartialChunk baseChunk = new PartialChunk(null, 0);
+    private final List<Grid<PartialChunk>> grids = new ArrayList<>();
+    private int maxChunkSize;
+    private Rect bounds;
 
-    public PolygonsWriter() throws IOException {}
+    public PolygonsWriter() throws IOException {
+    }
 
     @Override
     public void writeTo(OutputStream out) throws IOException {
         var objOut = new ObjectOutputStream(out);
-        // Write counts to beginning of stream, then write all the drawings
-        objOut.writeInt(indexCount);
-        objOut.writeInt(vertexCount);
-        objOut.writeInt(drawableCount);
-        super.writeTo(objOut);
-    }
 
-    // Write a single Drawing to the stream and forget about it afterwards
-    private void writeDrawing() {
-        var drawing = manager.drawing();
-
-        indexCount += drawing.indices().size();
-        vertexCount += drawing.vertices().size();
-        drawableCount += drawing.drawables().size();
-
-        try {
-            stream.writeUnshared(drawing);
-            stream.flush();
-            stream.reset();
-        } catch (IOException e) {
-            // We can't have checked exceptions here because this method is called from overwritten
-            // methods, and we don't want to change their signature.
-            // TODO: Handle >_>
-            e.printStackTrace();
-            throw new RuntimeException("could not write drawing to stream");
+        // Write header to beginning of stream
+        objOut.writeUnshared(bounds);
+        objOut.writeUnshared(baseChunk);
+        objOut.writeInt(grids.size());
+        for (var grid : grids) {
+            objOut.writeFloat(grid.cellSize);
+            objOut.writeInt(grid.size());
+            for (var chunk : grid) {
+                objOut.writeUnshared(chunk.point);
+                objOut.writeInt(chunk.getTotalIndices());
+                objOut.writeInt(chunk.getTotalVertices());
+                objOut.writeInt(chunk.getTotalDrawables());
+            }
         }
 
-        manager.clear();
+        // Write chunks
+        super.writeTo(objOut);
     }
 
     @Override
     public void onBounds(Rect bounds) {
-        manager.draw(
-                List.of(
-                        new Vector2D(Point.geoToMap(bounds.getTopLeft())),
-                        new Vector2D(Point.geoToMap(bounds.getTopRight())),
-                        new Vector2D(Point.geoToMap(bounds.getBottomRight())),
-                        new Vector2D(Point.geoToMap(bounds.getBottomLeft())),
-                        new Vector2D(Point.geoToMap(bounds.getTopLeft()))),
-                Drawable.BOUNDS);
+        this.bounds = bounds;
+        var total = 0;
+        for (int i = 1; i <= GRIDS; i++) {
+            var cellSize = (int) Math.pow(i, i) * CELL_SIZE;
+            var grid = new Grid<>(bounds, cellSize, p -> new PartialChunk(p, cellSize));
+            total += grid.size();
+            grids.add(grid);
+        }
+        maxChunkSize = MAX_SIZE / total;
+
+        baseChunk.add(
+                Drawing.create(
+                        List.of(
+                                Vector2D.create(Point.geoToMap(bounds.getTopLeft())),
+                                Vector2D.create(Point.geoToMap(bounds.getTopRight())),
+                                Vector2D.create(Point.geoToMap(bounds.getBottomRight())),
+                                Vector2D.create(Point.geoToMap(bounds.getBottomLeft())),
+                                Vector2D.create(Point.geoToMap(bounds.getTopLeft()))),
+                        DrawableEnum.BOUNDS));
     }
 
     @Override
     public void onWay(OSMWay way) {
-        var drawable = Drawable.from(way);
-        if (drawable == Drawable.IGNORED || drawable == Drawable.UNKNOWN) return;
+        var drawable = DrawableEnum.from(way);
+        if (drawable == DrawableEnum.IGNORED || drawable == DrawableEnum.UNKNOWN) return;
 
-        // Transform nodes to points
-        var points =
-                Arrays.stream(way.nodes())
-                        .map(n -> new Vector2D(Point.geoToMapX(n.lon()), Point.geoToMapY(n.lat())))
-                        .toList();
-
-        manager.drawOrdered(points, drawable, vertexCount / 2);
-
-        if (manager.byteSize() >= BUFFER_SIZE) writeDrawing();
+        drawNodes(Arrays.asList(way.nodes()), drawable);
     }
 
     @Override
     public void onRelation(OSMRelation relation) {
-        var drawable = Drawable.from(relation);
-        if (drawable == Drawable.IGNORED || drawable == Drawable.UNKNOWN) return;
+        var drawable = DrawableEnum.from(relation);
+        if (drawable == DrawableEnum.IGNORED || drawable == DrawableEnum.UNKNOWN) return;
 
         // Create line segments from all members and join them
         var joiner =
                 new SegmentJoiner<>(
-                        relation.members().stream()
-                                .filter(m -> m.role() == OSMMemberWay.Role.OUTER)
-                                .map(OSMMemberWay::way)
+                        relation.ways().stream()
                                 .map(SlimOSMWay::nodes)
                                 .map(Arrays::asList)
                                 .map(Segment<SlimOSMNode>::new)
@@ -99,19 +105,60 @@ public class PolygonsWriter extends TempFileWriter {
 
         // Draw all the segments
         for (var segment : joiner) {
-            manager.drawOrdered(
-                    segment.stream()
-                            .map(n -> new Vector2D(Point.geoToMapX(n.lon()), Point.geoToMapY(n.lat())))
-                            .toList(),
-                    drawable,
-                    vertexCount / 2);
+            drawNodes(segment, drawable);
+        }
+    }
+
+    private void drawNodes(Iterable<SlimOSMNode> iter, Drawable drawable) {
+        // Transform nodes to points and get bounding box
+        double top = Double.POSITIVE_INFINITY,
+                left = Double.POSITIVE_INFINITY,
+                bottom = Double.NEGATIVE_INFINITY,
+                right = Double.NEGATIVE_INFINITY;
+        for (var node : iter) {
+            points.add(Vector2D.create(Point.geoToMapX(node.lon()), Point.geoToMapY(node.lat())));
+            if (node.lon() < left) left = node.lon();
+            if (node.lon() > right) right = node.lon();
+            if (node.lat() < top) top = node.lat();
+            if (node.lat() > bottom) bottom = node.lat();
         }
 
-        if (manager.byteSize() >= BUFFER_SIZE) writeDrawing();
+        // If the element spans many cells, or it has high detail, we add it to the base instead of
+        // duplicating it across them all.
+        var size = (right - left) + (bottom - top);
+        if ((size > 2 * CELL_SIZE || drawable.detail() >= GRIDS - 1 && size > 0.3 * CELL_SIZE)
+                && drawable.shape() == Drawable.Shape.FILL) {
+            var drawing = Drawing.create(points, drawable);
+            baseChunk.add(drawing);
+        } else {
+            for (int detail = 0; detail < grids.size(); detail++) {
+                if (detail > drawable.detail()) break;
+
+                var drawing = Drawing.create(points, DrawableDetailWrapper.from(drawable, detail));
+
+                var grid = grids.get(detail);
+                for (var chunk : grid.range(top, left, bottom, right)) {
+                    if (chunk == null) continue;
+
+                    chunk.add(drawing);
+
+                    if (chunk.byteSize() > maxChunkSize) {
+                        chunk.flush(stream);
+                    }
+                }
+            }
+        }
+
+        points.forEach(Vector2D::reuse);
+        points.clear();
     }
 
     @Override
     public void onFinish() {
-        writeDrawing();
+        for (var grid : grids) {
+            for (var chunk : grid) {
+                chunk.flush(stream);
+            }
+        }
     }
 }

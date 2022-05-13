@@ -2,103 +2,111 @@ package Search;
 
 import collections.trie.Trie;
 import collections.trie.TrieBuilder;
+import geometry.Point;
 import osm.OSMObserver;
 import osm.elements.OSMNode;
 import osm.elements.OSMTag;
-
+import pointsOfInterest.PointOfInterest;
+import util.Predicates;
 
 import java.io.Serializable;
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.regex.Pattern;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
-
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class AddressDatabase implements OSMObserver, Serializable {
-    private Trie<Set<AddressBuilder>> streetToAddress;
-    private Trie<Set<AddressBuilder>> cityToAddress;
-    private Trie<Set<AddressBuilder>> postcodeToAddress;
-    private TrieBuilder<Set<AddressBuilder>> streetTrieBuilder;
-    private TrieBuilder<Set<AddressBuilder>> cityTrieBuilder;
-    private TrieBuilder<Set<AddressBuilder>> postcodeTrieBuilder;
-    private List<Address> history;
+    private static final String REGEX =
+            "^[ .,]*(?<street>[A-Za-zæøåÆØÅ.é ]+?)(([ .,]+)(?<house>[0-9]+[A-Za-z]?(-[0-9]+)?)([ ,.]+(?<floor>[0-9]{1,3})([ ,.]+(?<side>tv|th|mf|[0-9]{1,3})?))?([ ,.]*(?<postcode>[0-9]{4})??[ ,.]*(?<city>[A-Za-zæøåÆØÅ ]+?)?)?)?[ ,.]*$";
+    private static final Pattern PATTERN = Pattern.compile(REGEX);
+    private Trie<List<Address>> streetToAddress;
+    private Trie<List<Address>> cityToAddress;
+    private Trie<List<Address>> postcodeToAddress;
+    private TrieBuilder<List<Address>> streetTrieBuilder;
+    private TrieBuilder<List<Address>> cityTrieBuilder;
+    private TrieBuilder<List<Address>> postcodeTrieBuilder;
+    private List<PointOfInterest> pointsOfInterest;
 
     public AddressDatabase() {
         streetTrieBuilder = new TrieBuilder<>('\0');
         cityTrieBuilder = new TrieBuilder<>('\0');
         postcodeTrieBuilder = new TrieBuilder<>('\0');
-        history = new ArrayList<>();
+        pointsOfInterest = new ArrayList<>();
     }
 
-    public static AddressBuilder parse(String toParse){
+    public static AddressBuilder parse(String toParse) {
+
         var builder = new AddressBuilder();
+        if (toParse.contains("(Point of interest)")) {
+            builder.street(toParse);
+            builder.house("");
+            builder.city("");
+            builder.postcode("");
+            return builder;
+        }
+
         var matcher = PATTERN.matcher(toParse);
 
-        if(matcher.matches()){
+        if (matcher.matches()) {
             builder.street(matcher.group("street"));
             builder.house(matcher.group("house"));
             builder.postcode(matcher.group("postcode"));
             builder.city(matcher.group("city"));
-            builder.floor(matcher.group("floor"));
-            builder.side(matcher.group("side"));
-        } else{
+        } else {
             return null;
         }
         return builder;
     }
 
-    public List<Address> getHistory(){
-        return history;
+    public void addAddress(Address a) {
+        addToTrie(streetTrieBuilder, a.street(), a);
+        if (a.city() != null) {
+            addToTrie(cityTrieBuilder, a.city(), a);
+        }
+        if (a.postcode() != null) {
+            addToTrie(postcodeTrieBuilder, a.postcode(), a);
+        }
     }
 
-    public void addAddress(AddressBuilder a){
-        addToTrie(streetTrieBuilder, a.getStreet(), a);
-        if (a.getCity() != null) {
-            addToTrie(cityTrieBuilder, a.getCity(), a);
-        }
-        if (a.getPostcode() != null){
-            addToTrie(postcodeTrieBuilder, a.getPostcode(), a);
-        }
-
-    }
-
-    private void addToTrie(TrieBuilder<Set<AddressBuilder>> trie, String key, AddressBuilder value){
+    private void addToTrie(TrieBuilder<List<Address>> trie, String key, Address value) {
         var set = trie.get(key);
-        if(set == null){
-            set = new HashSet<>();
+        if (set == null) {
+            set = new ArrayList<>();
         }
         set.add(value);
         trie.put(key, set);
     }
 
     @Override
-    public void onNode(OSMNode node){
+    public void onNode(OSMNode node) {
         var builder = new AddressBuilder();
 
         boolean isAddress = false;
 
-        for (OSMTag t : node.tags()){
-            if (t.key()==OSMTag.Key.STREET){
+        for (OSMTag t : node.tags()) {
+            if (t.key() == OSMTag.Key.STREET) {
                 builder.street(t.value());
-                isAddress=true;
+                isAddress = true;
             }
-            if (t.key()==OSMTag.Key.HOUSENUMBER){
+            if (t.key() == OSMTag.Key.HOUSENUMBER) {
                 builder.house(t.value());
             }
-            if (t.key()==OSMTag.Key.CITY){
+            if (t.key() == OSMTag.Key.CITY) {
                 builder.city(t.value());
             }
-            if (t.key()==OSMTag.Key.POSTCODE){
+            if (t.key() == OSMTag.Key.POSTCODE) {
                 builder.postcode(t.value());
             }
         }
 
-        builder.SlimOSMNode(node.slim());
-        if (isAddress) addAddress(builder);
+        builder.lat((float) node.lat());
+        builder.lon((float) node.lon());
+
+        if (isAddress) addAddress(builder.build());
     }
 
-    public void buildTries(){
+    @Override
+    public void onFinish() {
         streetToAddress = streetTrieBuilder.build();
         cityToAddress = cityTrieBuilder.build();
         postcodeToAddress = postcodeTrieBuilder.build();
@@ -107,104 +115,109 @@ public class AddressDatabase implements OSMObserver, Serializable {
         cityTrieBuilder = null;
     }
 
-    private final static String REGEX = "^[ .,]*(?<street>[A-Za-zæøåÆØÅ.é ]+?)(([ .,]+)(?<house>[0-9]+[A-Za-z]?(-[0-9]+)?)([ ,.]+(?<floor>[0-9]{1,3})([ ,.]+(?<side>tv|th|mf|[0-9]{1,3})?))?([ ,.]*(?<postcode>[0-9]{4})??[ ,.]*(?<city>[A-Za-zæøåÆØÅ ]+?)?)?)?[ ,.]*$";
-    private final static Pattern PATTERN = Pattern.compile(REGEX);
+    public List<Address> search(Address input) {
 
-    public Address search(Address input){
-        var results = new LinkedList<Address>();
+        for (PointOfInterest poi : pointsOfInterest) {
+            if (input
+                    .street()
+                    .equalsIgnoreCase((poi.name() + " (point of interest)"))) {
+                var list = new ArrayList<Address>();
+                list.add(
+                        new Address(
+                                poi.name() + " (Point of interest)",
+                                "",
+                                "",
+                                "",
+                                (float) Point.mapToGeoY(poi.lat()),
+                                (float) Point.mapToGeoX(poi.lon())));
+                return list;
+            }
+        }
 
         var searchedStreets = streetToAddress.get(input.street());
-        if(searchedStreets == null) return null;
+        if (searchedStreets == null) return null;
 
-        if(input.postcode() != null){
-            searchedStreets.retainAll(postcodeToAddress.get(input.postcode()));
+        var filterStream = searchedStreets.stream();
+
+        if (input.postcode() != null) {
+            filterStream = filterStream.filter(e -> e.postcode().equals(input.postcode()));
         }
-        if(input.city() != null){
-            searchedStreets.retainAll(cityToAddress.get(input.city()));
+        if (input.city() != null) {
+            filterStream = filterStream.filter(e -> e.city().equals(input.city()));
         }
-        if(input.houseNumber() != null){
-            searchedStreets = searchedStreets.stream().filter(e -> e.getHouse().equals(input.houseNumber())).collect(Collectors.toSet());
+        if (input.houseNumber() != null) {
+            filterStream = filterStream.filter(e -> e.houseNumber().equals(input.houseNumber()));
         }
-        searchedStreets.forEach(e -> results.add(e.build()));
-        if(results.size() == 1){
-            var result = results.get(0);
-            history.add(result);
-            return result;
-        }else{
-            return null;
-        }
+        return filterStream.toList();
     }
 
     public List<Address> possibleAddresses(Address input, int maxEntries) {
-        final LinkedList<Address> results = new LinkedList<>();
-        var parsedStreetsAndCities = new HashSet<String>();
-        Set<AddressBuilder> filteringSet = new HashSet<AddressBuilder>();
+        Stream<Address> filterStream =
+                StreamSupport.stream(
+                                Spliterators.spliteratorUnknownSize(
+                                        streetToAddress.withPrefix(input.street()), Spliterator.ORDERED),
+                                false)
+                        .flatMap(e -> e.getValue().stream());
 
-
-        if(input.street() != null){
-            var searchedStreets = streetToAddress.withPrefix(input.street());
-            while(searchedStreets.hasNext()){
-                filteringSet.addAll(searchedStreets.next().getValue());
-            }
-        }else {
-            throw new RuntimeException();
-            //Street can never be null due to the regex. If the regex doesn't match, this method is never called.
+        if (input.houseNumber() != null) {
+            filterStream = filterStream.filter(e -> e.houseNumber().startsWith(input.houseNumber()));
         }
 
-        if(input.houseNumber() !=null){
-            //we know that we must have a full street name, and since there probably isn't that many streets with the
-            // same address it shouldn't take long to go through them linearly, to check if they have the specified house number
-            filteringSet = filteringSet.stream().filter(e -> e.getHouse().startsWith(input.houseNumber())).collect(Collectors.toSet());
-        }
-
-
-
-        if(input.postcode() != null){
+        if (input.postcode() != null) {
             var searchedPostcodes = postcodeToAddress.withPrefix(input.postcode());
 
-            var retain = new HashSet<AddressBuilder>();
-            while(searchedPostcodes.hasNext()){
+            var retain = new HashSet<Address>();
+            while (searchedPostcodes.hasNext()) {
                 var entry = searchedPostcodes.next().getValue();
                 retain.addAll(entry);
             }
 
-            filteringSet.retainAll(retain);
+            filterStream = filterStream.filter(retain::contains);
         }
 
-        if(input.city() != null){
+        if (input.city() != null) {
             var searchedCities = cityToAddress.withPrefix(input.city());
-            var retain = new HashSet<AddressBuilder>();
-            while(searchedCities.hasNext()){
+            var retain = new HashSet<Address>();
+            while (searchedCities.hasNext()) {
                 var entry = searchedCities.next().getValue();
                 retain.addAll(entry);
             }
-            filteringSet.retainAll(retain);
+
+            filterStream = filterStream.filter(retain::contains);
         }
 
-
-        if(input.houseNumber() != null){
-            filteringSet.stream().limit(maxEntries).forEach(e -> results.add(e.build()));
-        } else{
-            filteringSet.stream().limit(maxEntries).forEach(e -> {
-                if(parsedStreetsAndCities.add(e.getStreet() + "|" + e.getPostcode())){
-                    results.add(e.build());
-                }
-            });
+        List<Address> results;
+        if (input.houseNumber() != null) {
+            results = filterStream.limit(maxEntries).toList();
+        } else {
+            results =
+                    filterStream
+                            .filter(
+                                    Predicates.distinctByKey(e -> e.street().hashCode() * e.postcode().hashCode()))
+                            .limit(maxEntries)
+                            .toList();
         }
 
-        return results;
+        List<Address> newResult = new ArrayList<>();
+        for (PointOfInterest poi : pointsOfInterest) {
+            if (poi.name().toLowerCase().startsWith(input.street().toLowerCase())) {
+                newResult.add(
+                        new Address(
+                                poi.name() + " (Point of interest)",
+                                "",
+                                "",
+                                "",
+                                (float) Point.mapToGeoY(poi.lat()),
+                                (float) Point.mapToGeoX(poi.lon())));
+            }
+        }
 
+        newResult.addAll(results);
 
+        return newResult;
     }
 
-
-    //test method
-    public void display(){
-        for (Iterator<Entry<String, Set<AddressBuilder>>> it = streetToAddress.withPrefix(""); it.hasNext(); ) {
-            it.next().getValue().forEach(e -> System.out.println(e.getStreet()));
-        }
+    public void setPointsOfInterest(List<PointOfInterest> pointsOfInterest) {
+        this.pointsOfInterest = pointsOfInterest;
     }
-
-
-
 }

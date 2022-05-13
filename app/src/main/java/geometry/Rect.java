@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 public record Rect(float top, float left, float bottom, float right) implements Serializable {
     public Rect(Point topLeft, Point bottomRight) {
-        this(topLeft.x(), topLeft.y(), bottomRight.x(), bottomRight.y());
+        this(topLeft.y(), topLeft.x(), bottomRight.y(), bottomRight.x());
     }
 
     public Point getTopLeft() {

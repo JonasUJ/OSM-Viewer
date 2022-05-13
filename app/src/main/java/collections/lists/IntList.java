@@ -7,7 +7,8 @@ public class IntList implements Serializable {
     private int[] array = new int[8];
     private int n = 0;
 
-    public IntList() {}
+    public IntList() {
+    }
 
     public IntList(int[] array) {
         this.array = array;

@@ -1,10 +1,12 @@
 package collections.trie;
 
-import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.*;
 import java.util.Map.Entry;
 
-/** PrefixIterator iterates over keys with a given prefix. */
+/**
+ * PrefixIterator iterates over keys with a given prefix.
+ */
 public class TrieIterator<Value> implements Iterator<Entry<String, Value>> {
     private final String prefix;
     private final StringBuilder rest = new StringBuilder();

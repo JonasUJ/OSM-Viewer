@@ -1,12 +1,16 @@
 package collections;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 public class RefTable<E extends Entity> implements Iterable<E> {
     List<E> values = new ArrayList<>();
     boolean isSorted;
 
-    public RefTable() {}
+    public RefTable() {
+    }
 
     public void put(E value) {
         isSorted = false;

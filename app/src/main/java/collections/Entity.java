@@ -1,24 +1,18 @@
 package collections;
 
-public abstract class Entity implements Comparable<Entity> {
-    private static class IdEntity extends Entity {
-        private final long id;
+import java.io.Serializable;
 
-        private IdEntity(long id) {
-            this.id = id;
-        }
-
-        @Override
-        public long id() {
-            return id;
-        }
+public abstract class Entity implements Comparable<Entity>, Serializable {
+    public static Entity withIdStatic(long id) {
+        IdEntity.instance.id = id;
+        return IdEntity.instance;
     }
-
-    public abstract long id();
 
     public static Entity withId(long id) {
         return new IdEntity(id);
     }
+
+    public abstract long id();
 
     @Override
     public int compareTo(Entity other) {
@@ -28,5 +22,20 @@ public abstract class Entity implements Comparable<Entity> {
     @Override
     public boolean equals(Object o) {
         return o instanceof Entity e && e.id() == id();
+    }
+
+    private static class IdEntity extends Entity {
+        private static final IdEntity instance = new IdEntity(0);
+
+        private long id;
+
+        private IdEntity(long id) {
+            this.id = id;
+        }
+
+        @Override
+        public long id() {
+            return id;
+        }
     }
 }

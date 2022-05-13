@@ -2,15 +2,16 @@ package canvas;
 
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
+
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
 public class VBOWrapper {
+    public final int vbo;
     // private long capacity;
     private final int type;
-    public final int vbo;
     private final GL3 gl;
 
     public VBOWrapper(GLAutoDrawable glAutoDrawable, int type) {
@@ -55,7 +56,7 @@ public class VBOWrapper {
     }
 
     public void dispose() {
-        gl.glDeleteBuffers(1, new int[] {vbo}, 0);
+        gl.glDeleteBuffers(1, new int[]{vbo}, 0);
     }
 
     // private void grow(long newSize) {

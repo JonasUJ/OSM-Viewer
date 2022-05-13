@@ -3,16 +3,18 @@ package collections.trie;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
-/** Trie */
+/**
+ * Trie
+ */
 public interface Trie<Value> {
-        /**
-         * Get a trie of all entries with the given prefix. The new trie is unaware of the prefix, meaning
-         * queries to the new trie should not pass have this prefix.
-         *
-         * @param prefix Prefix to search for
-         * @return A new trie where all the entries are the entries from this trie and with the given
-         *     prefix, just with the prefix stripped.
-         */
+    /**
+     * Get a trie of all entries with the given prefix. The new trie is unaware of the prefix, meaning
+     * queries to the new trie should not pass have this prefix.
+     *
+     * @param prefix Prefix to search for
+     * @return A new trie where all the entries are the entries from this trie and with the given
+     * prefix, just with the prefix stripped.
+     */
     Trie<Value> narrow(String prefix);
 
     /**
