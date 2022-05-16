@@ -108,16 +108,6 @@ public class OSMReader {
     }
 
     private void advance(ByteVector until) {
-        int next = ByteVector.fromArray(SPECIES, buf, cur).eq(until).firstTrue();
-        cur += next;
-
-        // The happy path would be avoiding this condition.
-        if (next == SPECIES_LENGTH) {
-            advanceLoop(until);
-        }
-    }
-
-    private void advanceLoop(ByteVector until) {
         while (true) {
             int next = ByteVector.fromArray(SPECIES, buf, cur).eq(until).firstTrue();
             cur += next;

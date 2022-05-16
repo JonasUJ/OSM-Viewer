@@ -4,13 +4,14 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Side;
 import javafx.scene.control.TextField;
 import view.Model;
-
 import java.util.List;
+
 
 public class SearchTextField extends TextField {
     AutofillContextMenu popupEntries;
     Address currentSearch;
     AddressDatabase addressDatabase;
+
 
     public static String reformat(String string) {
         if (string == null) return null;
@@ -34,6 +35,7 @@ public class SearchTextField extends TextField {
         this.addressDatabase = addressDatabase;
         popupEntries = new AutofillContextMenu(this, addressDatabase);
         currentSearch = null;
+
     }
 
     public List<Address> handleSearch(Address parsedAddress) {
@@ -43,6 +45,7 @@ public class SearchTextField extends TextField {
     }
 
     public void showMenuItems(ObservableList<Address> itemsToShow) {
+
         popupEntries.hide();
 
         boolean showStreet = (currentSearch.street() != null);
@@ -80,6 +83,7 @@ public class SearchTextField extends TextField {
     }
 
     public void showCurrentAddresses() {
+
         if (getText().isBlank()) {
             popupEntries.hide();
             return;

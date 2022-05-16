@@ -26,11 +26,12 @@ import javafx.scene.transform.NonInvertibleTransformException;
 import javafx.scene.transform.Scale;
 import javafx.util.Duration;
 
+import java.sql.Time;
+import java.time.Clock;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class MapCanvas extends Region implements MouseListener {
-    // TODO: Add all if necessary
     public final ObjectProperty<EventHandler<MouseEvent>> mapMouseClickedProperty =
             new SimpleObjectProperty<>();
     public final ObjectProperty<EventHandler<MouseEvent>> mapMouseMovedProperty =
@@ -214,14 +215,28 @@ public class MapCanvas extends Region implements MouseListener {
     }
 
     public void zoomTo(Point point) {
-        setZoom(25);
-        center(point);
+        zoomTo(point,25);
+
     }
 
     public void zoomTo(Point point, float zoom) {
         setZoom(zoom);
         center(point);
     }
+
+
+    public void smoothZoomTo(float zoom,Point center){
+        float delay = 1000/60;
+        Timer timer = new Timer();
+        TimerTask zoomTimer = new ZoomTimer(this,center,zoom,timer);
+        timer.scheduleAtFixedRate(zoomTimer, 0L, (long) delay);
+    }
+
+    public void setZoom(float zoom) {
+        transform.setMxx(zoom);
+        transform.setMyy(zoom);
+    }
+
 
     public void zoomChange(boolean positive) {
         Point point = new Point(640, 360);
@@ -242,10 +257,6 @@ public class MapCanvas extends Region implements MouseListener {
         return (float) (transform.getMxx() / startZoom);
     }
 
-    public void setZoom(float zoom) {
-        transform.setMxx(zoom);
-        transform.setMyy(zoom);
-    }
 
     public void setZoomHandler(Rect bounds) {
         this.zoomHandler = new ZoomHandler(bounds, this);
@@ -329,6 +340,15 @@ public class MapCanvas extends Region implements MouseListener {
         }
     }
 
+
+
+    public Point getCenterPoint(){
+        var x = -(transform.getTx() - getWidth()/2) / transform.getMxx();
+        var y = -(transform.getTy() - getHeight()/2) / transform.getMyy();
+        return new Point((float) x, (float) y);
+    }
+  
+
     /**
      * Get the currently shown area as a lat/lon rect.
      *
@@ -354,4 +374,5 @@ public class MapCanvas extends Region implements MouseListener {
         var right = Point.mapToGeo(canvasToMap(new Point((float) getWidth(), 0)));
         return (right.x() - left.x()) / 2; // 2 is how many chunks we want on the x-axis
     }
+
 }

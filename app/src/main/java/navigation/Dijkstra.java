@@ -249,8 +249,9 @@ public class Dijkstra implements OSMObserver, Serializable {
                         .findFirst()
                         .orElse(getExpectedMaxSpeed(way));
 
+        // Max speed will be 0 if 'getExpectedMaxSpeed' is 0 or if there is a way with max speed 0.
         if (edgeRoles.isSet(EdgeRole.CAR) && maxSpeed == 0) {
-            throw new RuntimeException("Max speed cannot be zero when edge is used for CAR mode.");
+            maxSpeed = 1; // Set max speed to 1 to avoid division by zero in 'calculateWeight'.
         }
 
         var direction = determineDirection(way);

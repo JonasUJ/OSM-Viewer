@@ -1,6 +1,5 @@
 package application;
 
-import features.FeatureSet;
 import io.FileParser;
 import javafx.application.Application;
 import javafx.stage.Stage;
@@ -11,15 +10,7 @@ import java.io.File;
 public class App extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
-
-        // TODO: Exchange below lines before we submit (examiner, if you're reading this, I'm sorry)
-        // var model = new Model(FileParser.readMap(new File("data/bornholm.map")));
-        var model =
-                new Model(
-                        FileParser.readMap(
-                                FileParser.createMapFromOsm(
-                                        new File("data/bornholm.xml.zip"), FeatureSet.ALL, null)),
-                        null);
+        var model = new Model(FileParser.readMap(new File(App.class.getResource("bornholm.map").getFile())), null);
 
         new View(model, primaryStage);
     }

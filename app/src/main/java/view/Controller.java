@@ -43,6 +43,7 @@ import pointsOfInterest.PointsOfInterestVBox;
 
 public class Controller {
     private final Timer queryPointTimer = new Timer();
+    private final Timer clearCopiedTimer = new Timer();
     private Model model;
     private TimerTask queryPointTimerTask;
     private Point fromPoint, toPoint;
@@ -159,6 +160,8 @@ public class Controller {
 
         canvas.mapMouseClickedProperty.set(
                 e -> {
+
+
                     if (e.getButton() == MouseEvent.BUTTON2) {
                         var point = new Point(e.getX(), e.getY());
                         point = canvas.canvasToMap(point);
@@ -278,6 +281,11 @@ public class Controller {
                                             return cb;
                                         })
                                 .toList());
+
+
+        searchTextField.setOnAction(event -> {
+           search();
+        });
     }
 
     private void setModel(Model model) {
@@ -294,6 +302,7 @@ public class Controller {
         if (model.supports(Feature.DRAWING)) {
             canvas.setModel(model.canvasModel);
             canvas.setVisible(true);
+            fps.setVisible(true);
 
             pointsOfInterestVBox.init(model.getPointsOfInterest());
             rightVBox.setDisable(false);
@@ -305,6 +314,7 @@ public class Controller {
         if (model.supports(Feature.ADDRESS_SEARCH)) {
             searchTextField.init(model);
             searchTextField.setDisable(false);
+            searchButton.setDisable(false);
             lastDrawnAddress = null;
 
             model
@@ -316,12 +326,15 @@ public class Controller {
                                     });
         }
 
-        if (model.supports(Feature.PATHFINDING)) {
+        if (model.supports(Feature.PATHFINDING) && model.supports(Feature.ADDRESS_SEARCH)) {
             fromToDrawings = null;
             toRouteTextField.init(model);
             fromRouteTextField.init(model);
             toRouteTextField.setDisable(false);
             fromRouteTextField.setDisable(false);
+            routeButton.setDisable(false);
+            instructionsButton.setDisable(false);
+            navigationModeBox.setDisable(false);
             model
                     .getObservableToSuggestions()
                     .addListener(
@@ -353,12 +366,17 @@ public class Controller {
 
         canvas.dispose();
         canvas.setVisible(false);
+        fps.setVisible(false);
         rightVBox.setDisable(true);
 
         searchTextField.setDisable(true);
+        searchButton.setDisable(true);
 
         toRouteTextField.setDisable(true);
         fromRouteTextField.setDisable(true);
+        routeButton.setDisable(true);
+        instructionsButton.setDisable(true);
+        navigationModeBox.setDisable(true);
 
         nearestRoadLabel.setVisible(false);
         middleHBox.setDisable(true);
@@ -368,7 +386,9 @@ public class Controller {
         model.dispose();
         canvas.dispose();
         queryPointTimer.cancel();
+        clearCopiedTimer.cancel();
     }
+
 
     private Address handleSearchInput(SearchTextField textField) {
         var parsedAddress = textField.parseAddress();
@@ -380,13 +400,19 @@ public class Controller {
             routeErrorLabel.setText("More than one address was found. Try being more specific.");
             routeErrorLabel.setVisible(true);
 
+
             return null;
         }
         return result.get(0);
     }
 
+
     @FXML
     public void handleSearchClick() {
+       search();
+    }
+
+    public void search(){
         var result = handleSearchInput(searchTextField);
         if (result == null) {
             routeErrorLabel.setText(
@@ -399,6 +425,7 @@ public class Controller {
         }
 
         Point point = Point.geoToMap(new Point(result.lon(), result.lat()));
+
         zoomOn(point);
         var drawing = canvas.getRenderer().draw(Vector2D.create(point), DrawableEnum.ADDRESS);
         if (lastDrawnAddress != null) {
@@ -431,6 +458,7 @@ public class Controller {
         var fromRouteResult = handleSearchInput(fromRouteTextField);
         var toRouteResult = handleSearchInput(toRouteTextField);
 
+
         if (fromRouteResult == null || toRouteResult == null) {
             routeErrorLabel.setText(
                     "Please enter valid from and to addresses."
@@ -441,6 +469,7 @@ public class Controller {
             return;
         }
         routeBetweenAddresses(fromRouteResult, toRouteResult, navigationModeBox.getValue());
+
     }
 
     @FXML
@@ -481,7 +510,7 @@ public class Controller {
     }
 
     public void zoomOn(Point point) {
-        canvas.zoomTo(point);
+        canvas.smoothZoomTo(4,point);
     }
 
     public void addPointOfInterest(PointOfInterest point) {
@@ -520,17 +549,29 @@ public class Controller {
 
         var bounds = rightVBox.getBoundsInLocal();
         var screenBounds = rightVBox.localToScreen(bounds);
-        addPointOfInterestText.show(rightVBox, screenBounds.getMinX(), screenBounds.getMinY() + 230);
+        addPointOfInterestText.show(rightVBox, screenBounds.getMinX(), screenBounds.getMinY() + 360);
 
         pointOfInterestMode = true;
     }
 
     @FXML
     public void handleInstructions() {
-        Clipboard clipboard = Clipboard.getSystemClipboard();
-        ClipboardContent content = new ClipboardContent();
-        content.putString(model.getInstructionsFromDijkstra());
-        clipboard.setContent(content);
+        if (!model.getInstructionsFromDijkstra().equals("")){
+            Clipboard clipboard = Clipboard.getSystemClipboard();
+            ClipboardContent content = new ClipboardContent();
+            content.putString(model.getInstructionsFromDijkstra());
+            clipboard.setContent(content);
+            instructionsButton.setText("Copied!");
+
+            var clearCopiedTimerTask =
+                new TimerTask() {
+                    @Override
+                    public void run() {
+                        Platform.runLater(() -> instructionsButton.setText("Copy route"));
+                    }
+                };
+            clearCopiedTimer.schedule(clearCopiedTimerTask, 2000);
+        }
     }
 
     public void openMap() throws Exception {
@@ -552,7 +593,7 @@ public class Controller {
         diag.getExtensionFilters()
                 .add(
                         new FileChooser.ExtensionFilter(
-                                "OSM data file", "*.osm", " *.xml", " *.osm.zip", " *.xml.zip", "*.zip"));
+                                "OSM data file", "*.osm", "*.xml", "*.osm.zip", "*.xml.zip", "*.zip"));
         var file = diag.showOpenDialog(scene.getWindow());
         if (file == null) return;
 
@@ -602,7 +643,6 @@ public class Controller {
     @FXML
     public void handleFromKeyTyped(KeyEvent event) {
         routeErrorLabel.setVisible(false);
-
         var result = handleKeyTyped(event);
         if (result == null) {
             model.setFromSuggestions(Collections.emptyList());
@@ -626,10 +666,12 @@ public class Controller {
     @FXML
     public void handleSearchKeyTyped(KeyEvent event) {
         var result = handleKeyTyped(event);
+
         if (result == null) {
             model.setSearchSuggestions(Collections.emptyList());
             return;
         }
+
         model.setSearchSuggestions(result);
     }
 

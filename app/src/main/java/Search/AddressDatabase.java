@@ -16,9 +16,11 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class AddressDatabase implements OSMObserver, Serializable {
+
     private static final String REGEX =
             "^[ .,]*(?<street>[A-Za-zæøåÆØÅ.é ]+?)(([ .,]+)(?<house>[0-9]+[A-Za-z]?(-[0-9]+)?)([ ,.]+(?<floor>[0-9]{1,3})([ ,.]+(?<side>tv|th|mf|[0-9]{1,3})?))?([ ,.]*(?<postcode>[0-9]{4})??[ ,.]*(?<city>[A-Za-zæøåÆØÅ ]+?)?)?)?[ ,.]*$";
     private static final Pattern PATTERN = Pattern.compile(REGEX);
+
     private Trie<List<Address>> streetToAddress;
     private Trie<List<Address>> cityToAddress;
     private Trie<List<Address>> postcodeToAddress;
@@ -26,12 +28,13 @@ public class AddressDatabase implements OSMObserver, Serializable {
     private TrieBuilder<List<Address>> cityTrieBuilder;
     private TrieBuilder<List<Address>> postcodeTrieBuilder;
     private List<PointOfInterest> pointsOfInterest;
-
+  
     public AddressDatabase() {
         streetTrieBuilder = new TrieBuilder<>('\0');
         cityTrieBuilder = new TrieBuilder<>('\0');
         postcodeTrieBuilder = new TrieBuilder<>('\0');
         pointsOfInterest = new ArrayList<>();
+
     }
 
     public static AddressBuilder parse(String toParse) {
@@ -219,5 +222,6 @@ public class AddressDatabase implements OSMObserver, Serializable {
 
     public void setPointsOfInterest(List<PointOfInterest> pointsOfInterest) {
         this.pointsOfInterest = pointsOfInterest;
+
     }
 }

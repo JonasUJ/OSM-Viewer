@@ -36,14 +36,16 @@ public class AutofillContextMenu extends ContextMenu {
         } else if (appendCity && !pointOfIntest) {
             stringBuilder.append("House No. ");
         }
+
         if (address.postcode() != null) stringBuilder.append(menuAddress.postcode()).append(" ");
         if (address.city() != null || appendCity) stringBuilder.append(menuAddress.city()).append(" ");
 
         text.setText(stringBuilder.toString());
         if (appendCity && address.houseNumber() == null && !pointOfIntest) {
-            for (int i = 0; i < menuAddress.street().split(" ").length; i++) {
-                text.nextWord();
+            for (int i = 0; i < menuAddress.street().length(); i++) {
+                text.forward();
             }
+            text.forward();
             text.selectNextWord();
             text.selectNextWord();
             text.selectForward();

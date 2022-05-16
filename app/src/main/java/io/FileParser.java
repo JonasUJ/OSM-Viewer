@@ -20,7 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.zip.ZipFile;
 
-// TODO: Use a custom exception type instead of RuntimeException for when parsing fails.
 public class FileParser {
     public static final String EXT = ".map";
     private static final String FEATURES = "FEATURES";

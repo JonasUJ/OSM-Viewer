@@ -1,3 +1,4 @@
+
 VBox {
     -fx-font-size: 16px;
     -fx-font-family: "Times New Roman", Times, serif;
@@ -56,3 +57,4 @@ VBox {
 .check-box:selected .box {
     -fx-background-color: linear-gradient(to left, rgb(0, 255, 34),rgb(38, 0, 255));
 }
+

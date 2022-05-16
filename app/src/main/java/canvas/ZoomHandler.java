@@ -4,6 +4,7 @@ import geometry.Point;
 import geometry.Rect;
 
 public class ZoomHandler {
+
     private static final float R = 6371; // Earth radius in km
     private final Rect bounds;
     private final MapCanvas canvas;
@@ -105,5 +106,6 @@ public class ZoomHandler {
     public float getStartZoom() {
         return (1280
                 / (Point.geoToMap(bounds.getBottomRight()).x() - Point.geoToMap(bounds.getTopLeft()).x()));
+
     }
 }

@@ -173,6 +173,7 @@ public class AddressTest {
     // Utils
 
     private List<Address> search(String input) {
+
         var address = AddressDatabase.parse(input);
         if (address == null) {
             return null;
@@ -217,4 +218,5 @@ public class AddressTest {
 
         return stringBuilder.toString().trim();
     }
+
 }

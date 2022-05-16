@@ -1,4 +1,4 @@
- VBox {
+VBox {
     -fx-font-size: 16px;
     -fx-font-family: "Times New Roman", Times, serif;
     -fx-background-color: rgb(188, 255, 235);
@@ -26,6 +26,10 @@
     -fx-background-color: #db6e60;
 }
 
+ #removeButton:hover {
+     -fx-background-color: #b55a4e ;
+ }
+
 .radio-button .radio {
     -fx-background-color: white;
     -fx-border-color:grey;
@@ -51,3 +55,4 @@
 .check-box:selected .box {
     -fx-background-color: #99caf8;
 }
+

@@ -42,6 +42,8 @@ public class Model {
 
         features = new FeatureSet(result.readers().keySet());
 
+        pointsOfInterest = FXCollections.observableArrayList();
+
         double total = result.readers().size();
         AtomicInteger progress = new AtomicInteger();
 
@@ -54,14 +56,12 @@ public class Model {
                 case PATHFINDING -> dijkstra = (Dijkstra) entry.getValue().read();
                 case ADDRESS_SEARCH -> {
                     addresses = (AddressDatabase) entry.getValue().read();
+                    addresses.setPointsOfInterest(pointsOfInterest);
                 }
             }
 
             if (bar != null) Platform.runLater(() -> bar.setProgress(progress.incrementAndGet() / total));
         }
-
-        pointsOfInterest = FXCollections.observableArrayList();
-        addresses.setPointsOfInterest(pointsOfInterest);
     }
 
     public boolean supports(Feature feature) {

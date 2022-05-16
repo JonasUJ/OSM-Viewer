@@ -37,5 +37,10 @@ public abstract class Entity implements Comparable<Entity>, Serializable {
         public long id() {
             return id;
         }
+
+        @Override
+        public String toString() {
+            return "Entity(" + id() + ")";
+        }
     }
 }

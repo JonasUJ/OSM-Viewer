@@ -5,7 +5,7 @@ plugins {
     id "com.diffplug.spotless" version "6.3.0"
 }
 
-var heapSize = ['-Xmx4g', '-Xms1g']
+var heapSize = ['-Xmx5g', '-Xms1g']
 
 application {
     applicationDefaultJvmArgs = ['-javaagent:lib/jars/measurer-0.1.1.jar',
